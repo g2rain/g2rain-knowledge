@@ -1,0 +1,38 @@
+# Nacos：命名空间取 .env 的 NACOS_NAMESPACE，Group 与 Data ID 均为 g2rain-knowledge.yml 的 Group=g2rain-knowledge。
+# 账号密码换成服务器 .env 中的实际值。model-name 换成 Model Nexus 里已启用的模型名，向量维度须为 4096。
+spring:
+  datasource:
+    host: mysql
+    port: 3306
+    database: g2rain_knowledge
+    username: g2rain
+    password: g2rain123456
+    url: jdbc:mysql://${spring.datasource.host}:${spring.datasource.port}/${spring.datasource.database}?useUnicode=true&characterEncoding=utf-8&useSSL=true&zeroDateTimeBehavior=convertToNull&serverTimezone=GMT%2B8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 30000
+      validation-timeout: 3000
+      idle-timeout: 30000
+      max-lifetime: 300000
+      minimum-idle: 1
+      maximum-pool-size: 5
+      connection-test-query: select 1
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: g2rain_redis_11050826
+      database: 0
+
+g2rain:
+  knowledge:
+    embedding:
+      url: http://g2rain-model-nexus:8080/v1/embeddings
+      model-name:
+      dimension: 4096
+    answer:
+      url: http://g2rain-model-nexus:8080/v1/chat/completions
+      model-name:
+    rerank:
+      url: http://g2rain-model-nexus:8080/v1/rerank
+      model-name:

@@ -1,0 +1,642 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.g2rain.knowledge.dao.KnowledgeRevisionDao">
+    <!-- 通用结果集映射（包含所有字段：主键+基础字段+业务字段） -->
+    <resultMap id="BaseResultMap" type="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        <!-- 主键字段 -->
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <!-- 基础字段（createTime、updateTime） -->
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <!-- 业务字段（其他自定义字段） -->
+        <result column="organ_id" property="organId" jdbcType="BIGINT"/>
+        <result column="knowledge_id" property="knowledgeId" jdbcType="BIGINT"/>
+        <result column="revision_no" property="revisionNo" jdbcType="VARCHAR"/>
+        <result column="source_type" property="sourceType" jdbcType="VARCHAR"/>
+        <result column="revision_status" property="revisionStatus" jdbcType="VARCHAR"/>
+        <result column="source_file_name" property="sourceFileName" jdbcType="VARCHAR"/>
+        <result column="source_content_type" property="sourceContentType" jdbcType="VARCHAR"/>
+        <result column="source_storage_path" property="sourceStoragePath" jdbcType="VARCHAR"/>
+        <result column="source_sha256" property="sourceSha256" jdbcType="CHAR"/>
+        <result column="source_file_size" property="sourceFileSize" jdbcType="BIGINT"/>
+        <result column="parser_name" property="parserName" jdbcType="VARCHAR"/>
+        <result column="parser_version" property="parserVersion" jdbcType="VARCHAR"/>
+        <result column="parser_task_id" property="parserTaskId" jdbcType="VARCHAR"/>
+        <result column="parsed_storage_path" property="parsedStoragePath" jdbcType="VARCHAR"/>
+        <result column="chunk_count" property="chunkCount" jdbcType="INTEGER"/>
+        <result column="index_status" property="indexStatus" jdbcType="VARCHAR"/>
+        <result column="embedding_profile" property="embeddingProfile" jdbcType="VARCHAR"/>
+        <result column="embedding_model" property="embeddingModel" jdbcType="VARCHAR"/>
+        <result column="index_completed_time" property="indexCompletedTime" jdbcType="TIMESTAMP"/>
+        <result column="priority" property="priority" jdbcType="INTEGER"/>
+        <result column="reviewer_user_id" property="reviewerUserId" jdbcType="BIGINT"/>
+        <result column="review_time" property="reviewTime" jdbcType="TIMESTAMP"/>
+        <result column="review_comment" property="reviewComment" jdbcType="VARCHAR"/>
+        <result column="create_user_id" property="createUserId" jdbcType="BIGINT"/>
+        <result column="faq_question" property="faqQuestion" jdbcType="LONGVARCHAR"/>
+        <result column="faq_answer" property="faqAnswer" jdbcType="LONGVARCHAR"/>
+        <result column="tags_json" property="tagsJson" jdbcType="LONGVARCHAR"/>
+        <!-- deleteFlag字段（如果存在） -->
+        <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
+        <!-- version字段（如果存在） -->
+        <result column="version" property="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 定义可复用排序方向片段 -->
+    <sql id="directionClause">
+        <choose>
+            <when test="item.direction == 'DESC'">DESC</when>
+            <otherwise>ASC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 可复用的动态排序 SQL 片段 -->
+    <sql id="dynamicOrderBy">
+        <trim prefix="ORDER BY" suffixOverrides=",">
+            <foreach collection="safeSorts" item="item" separator=",">
+                <choose>
+                    <when test="item.column == 'id'">
+                        id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'createTime'">
+                        create_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'updateTime'">
+                        update_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'organId'">
+                        organ_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'knowledgeId'">
+                        knowledge_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'revisionNo'">
+                        revision_no
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceType'">
+                        source_type
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'revisionStatus'">
+                        revision_status
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceFileName'">
+                        source_file_name
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceContentType'">
+                        source_content_type
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceStoragePath'">
+                        source_storage_path
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceSha256'">
+                        source_sha256
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceFileSize'">
+                        source_file_size
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'parserName'">
+                        parser_name
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'parserVersion'">
+                        parser_version
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'parserTaskId'">
+                        parser_task_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'parsedStoragePath'">
+                        parsed_storage_path
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'chunkCount'">
+                        chunk_count
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'indexStatus'">
+                        index_status
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'embeddingProfile'">
+                        embedding_profile
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'embeddingModel'">
+                        embedding_model
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'indexCompletedTime'">
+                        index_completed_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'priority'">
+                        priority
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'reviewerUserId'">
+                        reviewer_user_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'reviewTime'">
+                        review_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'reviewComment'">
+                        review_comment
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'createUserId'">
+                        create_user_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'faqQuestion'">
+                        faq_question
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'faqAnswer'">
+                        faq_answer
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'tagsJson'">
+                        tags_json
+                        <include refid="directionClause"/>
+                    </when>
+                </choose>
+            </foreach>
+        </trim>
+    </sql>
+
+    <!-- insert / insertWithoutIsolation 共用 -->
+    <sql id="insertBody">
+        INSERT INTO knowledge_revision (
+        <!-- 主键字段（自增主键不包含在插入语句中） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES (
+        <!-- 主键值（自增主键不包含） -->
+        #{id, jdbcType=BIGINT},
+        <!-- 基础字段值 -->
+        #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
+        <!-- 业务字段值 -->
+        #{organId, jdbcType=BIGINT}, #{knowledgeId, jdbcType=BIGINT}, #{revisionNo, jdbcType=VARCHAR}, #{sourceType, jdbcType=VARCHAR}, #{revisionStatus, jdbcType=VARCHAR}, #{sourceFileName, jdbcType=VARCHAR}, #{sourceContentType, jdbcType=VARCHAR}, #{sourceStoragePath, jdbcType=VARCHAR}, #{sourceSha256, jdbcType=CHAR}, #{sourceFileSize, jdbcType=BIGINT}, #{parserName, jdbcType=VARCHAR}, #{parserVersion, jdbcType=VARCHAR}, #{parserTaskId, jdbcType=VARCHAR}, #{parsedStoragePath, jdbcType=VARCHAR}, #{chunkCount, jdbcType=INTEGER}, #{indexStatus, jdbcType=VARCHAR}, #{embeddingProfile, jdbcType=VARCHAR}, #{embeddingModel, jdbcType=VARCHAR}, #{indexCompletedTime, jdbcType=TIMESTAMP}, #{priority, jdbcType=INTEGER}, #{reviewerUserId, jdbcType=BIGINT}, #{reviewTime, jdbcType=TIMESTAMP}, #{reviewComment, jdbcType=VARCHAR}, #{createUserId, jdbcType=BIGINT}, #{faqQuestion, jdbcType=LONGVARCHAR}, #{faqAnswer, jdbcType=LONGVARCHAR}, #{tagsJson, jdbcType=LONGVARCHAR},
+        <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+        0,
+        <!-- version字段值（如果存在，设置默认值为0） -->
+        0
+        )
+    </sql>
+
+    <!-- update / updateWithoutIsolation 共用 -->
+    <sql id="updateBody">
+        UPDATE knowledge_revision
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="knowledgeId != null">
+                knowledge_id = #{knowledgeId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionNo != null">
+                revision_no = #{revisionNo, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceType != null">
+                source_type = #{sourceType, jdbcType=VARCHAR},
+            </if>
+            <if test="revisionStatus != null">
+                revision_status = #{revisionStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceFileName != null">
+                source_file_name = #{sourceFileName, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceContentType != null">
+                source_content_type = #{sourceContentType, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceStoragePath != null">
+                source_storage_path = #{sourceStoragePath, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceSha256 != null">
+                source_sha256 = #{sourceSha256, jdbcType=CHAR},
+            </if>
+            <if test="sourceFileSize != null">
+                source_file_size = #{sourceFileSize, jdbcType=BIGINT},
+            </if>
+            <if test="parserName != null">
+                parser_name = #{parserName, jdbcType=VARCHAR},
+            </if>
+            <if test="parserVersion != null">
+                parser_version = #{parserVersion, jdbcType=VARCHAR},
+            </if>
+            <if test="parserTaskId != null">
+                parser_task_id = #{parserTaskId, jdbcType=VARCHAR},
+            </if>
+            <if test="parsedStoragePath != null">
+                parsed_storage_path = #{parsedStoragePath, jdbcType=VARCHAR},
+            </if>
+            <if test="chunkCount != null">
+                chunk_count = #{chunkCount, jdbcType=INTEGER},
+            </if>
+            <if test="indexStatus != null">
+                index_status = #{indexStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="embeddingProfile != null">
+                embedding_profile = #{embeddingProfile, jdbcType=VARCHAR},
+            </if>
+            <if test="embeddingModel != null">
+                embedding_model = #{embeddingModel, jdbcType=VARCHAR},
+            </if>
+            <if test="indexCompletedTime != null">
+                index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="priority != null">
+                priority = #{priority, jdbcType=INTEGER},
+            </if>
+            <if test="reviewerUserId != null">
+                reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT},
+            </if>
+            <if test="reviewTime != null">
+                review_time = #{reviewTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="reviewComment != null">
+                review_comment = #{reviewComment, jdbcType=VARCHAR},
+            </if>
+            <if test="createUserId != null">
+                create_user_id = #{createUserId, jdbcType=BIGINT},
+            </if>
+            <if test="faqQuestion != null">
+                faq_question = #{faqQuestion, jdbcType=LONGVARCHAR},
+            </if>
+            <if test="faqAnswer != null">
+                faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR},
+            </if>
+            <if test="tagsJson != null">
+                tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（如果存在，版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+    </sql>
+
+    <!-- selectById / selectByIdWithoutIsolation 共用 -->
+    <sql id="selectByIdBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_revision
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 过滤已删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </sql>
+
+    <!-- selectList / selectListWithoutIsolation 共用 -->
+    <sql id="selectListBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_revision
+        <where>
+            <!-- 主键筛选 -->
+            <if test="id != null">
+                AND id = #{id, jdbcType=BIGINT}
+            </if>
+            <if test="ids != null and ids.size() > 0">
+                AND id IN
+                <foreach collection="ids" item="item" open="(" separator="," close=")">
+                    #{item, jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <!-- 基础字段筛选（createTime和updateTime时间筛选） -->
+            <if test="createTime != null">
+                <if test="createTime[0] != '' and (createTime.size() lt 2 or createTime[1] == '')">
+                    AND create_time >= #{createTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] == '' and createTime[1] != ''">
+                    AND create_time &lt;= #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] != '' and createTime[1] != ''">
+                    AND create_time BETWEEN #{createTime[0], jdbcType=TIMESTAMP}
+                    AND #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <if test="updateTime != null">
+                <if test="updateTime[0] != '' and (updateTime.size() lt 2 or updateTime[1] == '')">
+                    AND update_time >= #{updateTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] == '' and updateTime[1] != ''">
+                    AND update_time &lt;= #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] != '' and updateTime[1] != ''">
+                    AND update_time BETWEEN #{updateTime[0], jdbcType=TIMESTAMP}
+                    AND #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <!-- 业务字段筛选 -->
+            <if test="organId != null">
+                AND organ_id = #{organId, jdbcType=BIGINT}
+            </if>
+            <if test="knowledgeId != null">
+                AND knowledge_id = #{knowledgeId, jdbcType=BIGINT}
+            </if>
+            <if test="revisionNo != null">
+                AND revision_no = #{revisionNo, jdbcType=VARCHAR}
+            </if>
+            <if test="sourceType != null">
+                AND source_type = #{sourceType, jdbcType=VARCHAR}
+            </if>
+            <if test="revisionStatus != null">
+                AND revision_status = #{revisionStatus, jdbcType=VARCHAR}
+            </if>
+            <if test="sourceFileName != null">
+                AND source_file_name = #{sourceFileName, jdbcType=VARCHAR}
+            </if>
+            <if test="sourceContentType != null">
+                AND source_content_type = #{sourceContentType, jdbcType=VARCHAR}
+            </if>
+            <if test="sourceStoragePath != null">
+                AND source_storage_path = #{sourceStoragePath, jdbcType=VARCHAR}
+            </if>
+            <if test="sourceSha256 != null">
+                AND source_sha256 = #{sourceSha256, jdbcType=CHAR}
+            </if>
+            <if test="sourceFileSize != null">
+                AND source_file_size = #{sourceFileSize, jdbcType=BIGINT}
+            </if>
+            <if test="parserName != null">
+                AND parser_name = #{parserName, jdbcType=VARCHAR}
+            </if>
+            <if test="parserVersion != null">
+                AND parser_version = #{parserVersion, jdbcType=VARCHAR}
+            </if>
+            <if test="parserTaskId != null">
+                AND parser_task_id = #{parserTaskId, jdbcType=VARCHAR}
+            </if>
+            <if test="parsedStoragePath != null">
+                AND parsed_storage_path = #{parsedStoragePath, jdbcType=VARCHAR}
+            </if>
+            <if test="chunkCount != null">
+                AND chunk_count = #{chunkCount, jdbcType=INTEGER}
+            </if>
+            <if test="indexStatus != null">
+                AND index_status = #{indexStatus, jdbcType=VARCHAR}
+            </if>
+            <if test="embeddingProfile != null">
+                AND embedding_profile = #{embeddingProfile, jdbcType=VARCHAR}
+            </if>
+            <if test="embeddingModel != null">
+                AND embedding_model = #{embeddingModel, jdbcType=VARCHAR}
+            </if>
+            <if test="indexCompletedTime != null">
+                AND index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="priority != null">
+                AND priority = #{priority, jdbcType=INTEGER}
+            </if>
+            <if test="reviewerUserId != null">
+                AND reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT}
+            </if>
+            <if test="reviewTime != null">
+                AND review_time = #{reviewTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="reviewComment != null">
+                AND review_comment = #{reviewComment, jdbcType=VARCHAR}
+            </if>
+            <if test="createUserId != null">
+                AND create_user_id = #{createUserId, jdbcType=BIGINT}
+            </if>
+            <if test="faqQuestion != null">
+                AND faq_question = #{faqQuestion, jdbcType=LONGVARCHAR}
+            </if>
+            <if test="faqAnswer != null">
+                AND faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR}
+            </if>
+            <if test="tagsJson != null">
+                AND tags_json = #{tagsJson, jdbcType=LONGVARCHAR}
+            </if>
+            <!-- 过滤已删除的记录 -->
+            AND (delete_flag = 0 OR delete_flag IS NULL)
+        </where>
+        <include refid="dynamicOrderBy"/>
+    </sql>
+
+    <!-- 插入单条记录 -->
+    <insert id="insert" parameterType="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 批量插入记录 -->
+    <insert id="insertMultiple" parameterType="java.util.List">
+        INSERT INTO knowledge_revision (
+        <!-- 主键字段（自增主键不包含） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            <!-- 主键值（自增主键不包含） -->
+            #{item.id, jdbcType=BIGINT},
+            <!-- 基础字段值 -->
+            #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
+            <!-- 业务字段值 -->
+            #{item.organId, jdbcType=BIGINT}, #{item.knowledgeId, jdbcType=BIGINT}, #{item.revisionNo, jdbcType=VARCHAR}, #{item.sourceType, jdbcType=VARCHAR}, #{item.revisionStatus, jdbcType=VARCHAR}, #{item.sourceFileName, jdbcType=VARCHAR}, #{item.sourceContentType, jdbcType=VARCHAR}, #{item.sourceStoragePath, jdbcType=VARCHAR}, #{item.sourceSha256, jdbcType=CHAR}, #{item.sourceFileSize, jdbcType=BIGINT}, #{item.parserName, jdbcType=VARCHAR}, #{item.parserVersion, jdbcType=VARCHAR}, #{item.parserTaskId, jdbcType=VARCHAR}, #{item.parsedStoragePath, jdbcType=VARCHAR}, #{item.chunkCount, jdbcType=INTEGER}, #{item.indexStatus, jdbcType=VARCHAR}, #{item.embeddingProfile, jdbcType=VARCHAR}, #{item.embeddingModel, jdbcType=VARCHAR}, #{item.indexCompletedTime, jdbcType=TIMESTAMP}, #{item.priority, jdbcType=INTEGER}, #{item.reviewerUserId, jdbcType=BIGINT}, #{item.reviewTime, jdbcType=TIMESTAMP}, #{item.reviewComment, jdbcType=VARCHAR}, #{item.createUserId, jdbcType=BIGINT}, #{item.faqQuestion, jdbcType=LONGVARCHAR}, #{item.faqAnswer, jdbcType=LONGVARCHAR}, #{item.tagsJson, jdbcType=LONGVARCHAR},
+            <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+            0,
+            <!-- version字段值（如果存在，设置默认值为0） -->
+            0
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据 ID 更新记录（包含基础字段和业务字段） -->
+    <update id="update" parameterType="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 和 Version 更新记录（乐观锁更新，包含基础字段和业务字段） -->
+    <update id="updateByVersion" parameterType="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        UPDATE knowledge_revision
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="knowledgeId != null">
+                knowledge_id = #{knowledgeId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionNo != null">
+                revision_no = #{revisionNo, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceType != null">
+                source_type = #{sourceType, jdbcType=VARCHAR},
+            </if>
+            <if test="revisionStatus != null">
+                revision_status = #{revisionStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceFileName != null">
+                source_file_name = #{sourceFileName, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceContentType != null">
+                source_content_type = #{sourceContentType, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceStoragePath != null">
+                source_storage_path = #{sourceStoragePath, jdbcType=VARCHAR},
+            </if>
+            <if test="sourceSha256 != null">
+                source_sha256 = #{sourceSha256, jdbcType=CHAR},
+            </if>
+            <if test="sourceFileSize != null">
+                source_file_size = #{sourceFileSize, jdbcType=BIGINT},
+            </if>
+            <if test="parserName != null">
+                parser_name = #{parserName, jdbcType=VARCHAR},
+            </if>
+            <if test="parserVersion != null">
+                parser_version = #{parserVersion, jdbcType=VARCHAR},
+            </if>
+            <if test="parserTaskId != null">
+                parser_task_id = #{parserTaskId, jdbcType=VARCHAR},
+            </if>
+            <if test="parsedStoragePath != null">
+                parsed_storage_path = #{parsedStoragePath, jdbcType=VARCHAR},
+            </if>
+            <if test="chunkCount != null">
+                chunk_count = #{chunkCount, jdbcType=INTEGER},
+            </if>
+            <if test="indexStatus != null">
+                index_status = #{indexStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="embeddingProfile != null">
+                embedding_profile = #{embeddingProfile, jdbcType=VARCHAR},
+            </if>
+            <if test="embeddingModel != null">
+                embedding_model = #{embeddingModel, jdbcType=VARCHAR},
+            </if>
+            <if test="indexCompletedTime != null">
+                index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="priority != null">
+                priority = #{priority, jdbcType=INTEGER},
+            </if>
+            <if test="reviewerUserId != null">
+                reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT},
+            </if>
+            <if test="reviewTime != null">
+                review_time = #{reviewTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="reviewComment != null">
+                review_comment = #{reviewComment, jdbcType=VARCHAR},
+            </if>
+            <if test="createUserId != null">
+                create_user_id = #{createUserId, jdbcType=BIGINT},
+            </if>
+            <if test="faqQuestion != null">
+                faq_question = #{faqQuestion, jdbcType=LONGVARCHAR},
+            </if>
+            <if test="faqAnswer != null">
+                faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR},
+            </if>
+            <if test="tagsJson != null">
+                tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（乐观锁版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        AND version = #{version, jdbcType=INTEGER}
+    </update>
+
+    <!-- 根据 ID 删除记录（逻辑删除：将delete_flag设置为true） -->
+    <update id="delete" parameterType="Long">
+        UPDATE knowledge_revision
+        <set>
+            delete_flag = 1, version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 只删除未删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <!-- 根据 ID 查询记录（查询所有字段） -->
+    <select id="selectById" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表 -->
+    <select id="selectList" parameterType="com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+
+    <!-- 插入单条记录（忽略数据隔离） -->
+    <insert id="insertWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 根据 ID 更新记录（忽略数据隔离） -->
+    <update id="updateWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeRevisionPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 查询记录（忽略数据隔离） -->
+    <select id="selectByIdWithoutIsolation" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表（忽略数据隔离） -->
+    <select id="selectListWithoutIsolation" parameterType="com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+</mapper>

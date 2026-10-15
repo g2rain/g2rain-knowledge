@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.g2rain.knowledge.dao.KnowledgeFeedbackDao">
+    <!-- 通用结果集映射（包含所有字段：主键+基础字段+业务字段） -->
+    <resultMap id="BaseResultMap" type="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        <!-- 主键字段 -->
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <!-- 基础字段（createTime、updateTime） -->
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <!-- 业务字段（其他自定义字段） -->
+        <result column="organ_id" property="organId" jdbcType="BIGINT"/>
+        <result column="revision_id" property="revisionId" jdbcType="BIGINT"/>
+        <result column="chunk_id" property="chunkId" jdbcType="BIGINT"/>
+        <result column="trace_id" property="traceId" jdbcType="VARCHAR"/>
+        <result column="feedback_type" property="feedbackType" jdbcType="VARCHAR"/>
+        <result column="feedback_status" property="feedbackStatus" jdbcType="VARCHAR"/>
+        <result column="feedback_summary" property="feedbackSummary" jdbcType="VARCHAR"/>
+        <result column="operator_user_id" property="operatorUserId" jdbcType="BIGINT"/>
+        <result column="resolved_user_id" property="resolvedUserId" jdbcType="BIGINT"/>
+        <result column="resolved_time" property="resolvedTime" jdbcType="TIMESTAMP"/>
+        <result column="corrected_answer" property="correctedAnswer" jdbcType="LONGVARCHAR"/>
+        <!-- deleteFlag字段（如果存在） -->
+        <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
+        <!-- version字段（如果存在） -->
+        <result column="version" property="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 定义可复用排序方向片段 -->
+    <sql id="directionClause">
+        <choose>
+            <when test="item.direction == 'DESC'">DESC</when>
+            <otherwise>ASC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 可复用的动态排序 SQL 片段 -->
+    <sql id="dynamicOrderBy">
+        <trim prefix="ORDER BY" suffixOverrides=",">
+            <foreach collection="safeSorts" item="item" separator=",">
+                <choose>
+                    <when test="item.column == 'id'">
+                        id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'createTime'">
+                        create_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'updateTime'">
+                        update_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'organId'">
+                        organ_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'revisionId'">
+                        revision_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'chunkId'">
+                        chunk_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'traceId'">
+                        trace_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'feedbackType'">
+                        feedback_type
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'feedbackStatus'">
+                        feedback_status
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'feedbackSummary'">
+                        feedback_summary
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'operatorUserId'">
+                        operator_user_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'resolvedUserId'">
+                        resolved_user_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'resolvedTime'">
+                        resolved_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'correctedAnswer'">
+                        corrected_answer
+                        <include refid="directionClause"/>
+                    </when>
+                </choose>
+            </foreach>
+        </trim>
+    </sql>
+
+    <!-- insert / insertWithoutIsolation 共用 -->
+    <sql id="insertBody">
+        INSERT INTO knowledge_feedback (
+        <!-- 主键字段（自增主键不包含在插入语句中） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_id, trace_id, feedback_type, feedback_status, feedback_summary, operator_user_id, resolved_user_id, resolved_time, corrected_answer,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES (
+        <!-- 主键值（自增主键不包含） -->
+        #{id, jdbcType=BIGINT},
+        <!-- 基础字段值 -->
+        #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
+        <!-- 业务字段值 -->
+        #{organId, jdbcType=BIGINT}, #{revisionId, jdbcType=BIGINT}, #{chunkId, jdbcType=BIGINT}, #{traceId, jdbcType=VARCHAR}, #{feedbackType, jdbcType=VARCHAR}, #{feedbackStatus, jdbcType=VARCHAR}, #{feedbackSummary, jdbcType=VARCHAR}, #{operatorUserId, jdbcType=BIGINT}, #{resolvedUserId, jdbcType=BIGINT}, #{resolvedTime, jdbcType=TIMESTAMP}, #{correctedAnswer, jdbcType=LONGVARCHAR},
+        <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+        0,
+        <!-- version字段值（如果存在，设置默认值为0） -->
+        0
+        )
+    </sql>
+
+    <!-- update / updateWithoutIsolation 共用 -->
+    <sql id="updateBody">
+        UPDATE knowledge_feedback
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="chunkId != null">
+                chunk_id = #{chunkId, jdbcType=BIGINT},
+            </if>
+            <if test="traceId != null">
+                trace_id = #{traceId, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackType != null">
+                feedback_type = #{feedbackType, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackStatus != null">
+                feedback_status = #{feedbackStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackSummary != null">
+                feedback_summary = #{feedbackSummary, jdbcType=VARCHAR},
+            </if>
+            <if test="operatorUserId != null">
+                operator_user_id = #{operatorUserId, jdbcType=BIGINT},
+            </if>
+            <if test="resolvedUserId != null">
+                resolved_user_id = #{resolvedUserId, jdbcType=BIGINT},
+            </if>
+            <if test="resolvedTime != null">
+                resolved_time = #{resolvedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="correctedAnswer != null">
+                corrected_answer = #{correctedAnswer, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（如果存在，版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+    </sql>
+
+    <!-- selectById / selectByIdWithoutIsolation 共用 -->
+    <sql id="selectByIdBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_id, trace_id, feedback_type, feedback_status, feedback_summary, operator_user_id, resolved_user_id, resolved_time, corrected_answer,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_feedback
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 过滤已删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </sql>
+
+    <!-- selectList / selectListWithoutIsolation 共用 -->
+    <sql id="selectListBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_id, trace_id, feedback_type, feedback_status, feedback_summary, operator_user_id, resolved_user_id, resolved_time, corrected_answer,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_feedback
+        <where>
+            <!-- 主键筛选 -->
+            <if test="id != null">
+                AND id = #{id, jdbcType=BIGINT}
+            </if>
+            <if test="ids != null and ids.size() > 0">
+                AND id IN
+                <foreach collection="ids" item="item" open="(" separator="," close=")">
+                    #{item, jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <!-- 基础字段筛选（createTime和updateTime时间筛选） -->
+            <if test="createTime != null">
+                <if test="createTime[0] != '' and (createTime.size() lt 2 or createTime[1] == '')">
+                    AND create_time >= #{createTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] == '' and createTime[1] != ''">
+                    AND create_time &lt;= #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] != '' and createTime[1] != ''">
+                    AND create_time BETWEEN #{createTime[0], jdbcType=TIMESTAMP}
+                    AND #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <if test="updateTime != null">
+                <if test="updateTime[0] != '' and (updateTime.size() lt 2 or updateTime[1] == '')">
+                    AND update_time >= #{updateTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] == '' and updateTime[1] != ''">
+                    AND update_time &lt;= #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] != '' and updateTime[1] != ''">
+                    AND update_time BETWEEN #{updateTime[0], jdbcType=TIMESTAMP}
+                    AND #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <!-- 业务字段筛选 -->
+            <if test="organId != null">
+                AND organ_id = #{organId, jdbcType=BIGINT}
+            </if>
+            <if test="revisionId != null">
+                AND revision_id = #{revisionId, jdbcType=BIGINT}
+            </if>
+            <if test="chunkId != null">
+                AND chunk_id = #{chunkId, jdbcType=BIGINT}
+            </if>
+            <if test="traceId != null">
+                AND trace_id = #{traceId, jdbcType=VARCHAR}
+            </if>
+            <if test="feedbackType != null">
+                AND feedback_type = #{feedbackType, jdbcType=VARCHAR}
+            </if>
+            <if test="feedbackStatus != null">
+                AND feedback_status = #{feedbackStatus, jdbcType=VARCHAR}
+            </if>
+            <if test="feedbackSummary != null">
+                AND feedback_summary = #{feedbackSummary, jdbcType=VARCHAR}
+            </if>
+            <if test="operatorUserId != null">
+                AND operator_user_id = #{operatorUserId, jdbcType=BIGINT}
+            </if>
+            <if test="resolvedUserId != null">
+                AND resolved_user_id = #{resolvedUserId, jdbcType=BIGINT}
+            </if>
+            <if test="resolvedTime != null">
+                AND resolved_time = #{resolvedTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="correctedAnswer != null">
+                AND corrected_answer = #{correctedAnswer, jdbcType=LONGVARCHAR}
+            </if>
+            <!-- 过滤已删除的记录 -->
+            AND (delete_flag = 0 OR delete_flag IS NULL)
+        </where>
+        <include refid="dynamicOrderBy"/>
+    </sql>
+
+    <!-- 插入单条记录 -->
+    <insert id="insert" parameterType="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 批量插入记录 -->
+    <insert id="insertMultiple" parameterType="java.util.List">
+        INSERT INTO knowledge_feedback (
+        <!-- 主键字段（自增主键不包含） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_id, trace_id, feedback_type, feedback_status, feedback_summary, operator_user_id, resolved_user_id, resolved_time, corrected_answer,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            <!-- 主键值（自增主键不包含） -->
+            #{item.id, jdbcType=BIGINT},
+            <!-- 基础字段值 -->
+            #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
+            <!-- 业务字段值 -->
+            #{item.organId, jdbcType=BIGINT}, #{item.revisionId, jdbcType=BIGINT}, #{item.chunkId, jdbcType=BIGINT}, #{item.traceId, jdbcType=VARCHAR}, #{item.feedbackType, jdbcType=VARCHAR}, #{item.feedbackStatus, jdbcType=VARCHAR}, #{item.feedbackSummary, jdbcType=VARCHAR}, #{item.operatorUserId, jdbcType=BIGINT}, #{item.resolvedUserId, jdbcType=BIGINT}, #{item.resolvedTime, jdbcType=TIMESTAMP}, #{item.correctedAnswer, jdbcType=LONGVARCHAR},
+            <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+            0,
+            <!-- version字段值（如果存在，设置默认值为0） -->
+            0
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据 ID 更新记录（包含基础字段和业务字段） -->
+    <update id="update" parameterType="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 和 Version 更新记录（乐观锁更新，包含基础字段和业务字段） -->
+    <update id="updateByVersion" parameterType="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        UPDATE knowledge_feedback
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="chunkId != null">
+                chunk_id = #{chunkId, jdbcType=BIGINT},
+            </if>
+            <if test="traceId != null">
+                trace_id = #{traceId, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackType != null">
+                feedback_type = #{feedbackType, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackStatus != null">
+                feedback_status = #{feedbackStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="feedbackSummary != null">
+                feedback_summary = #{feedbackSummary, jdbcType=VARCHAR},
+            </if>
+            <if test="operatorUserId != null">
+                operator_user_id = #{operatorUserId, jdbcType=BIGINT},
+            </if>
+            <if test="resolvedUserId != null">
+                resolved_user_id = #{resolvedUserId, jdbcType=BIGINT},
+            </if>
+            <if test="resolvedTime != null">
+                resolved_time = #{resolvedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="correctedAnswer != null">
+                corrected_answer = #{correctedAnswer, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（乐观锁版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        AND version = #{version, jdbcType=INTEGER}
+    </update>
+
+    <!-- 根据 ID 删除记录（逻辑删除：将delete_flag设置为true） -->
+    <update id="delete" parameterType="Long">
+        UPDATE knowledge_feedback
+        <set>
+            delete_flag = 1, version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 只删除未删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <!-- 根据 ID 查询记录（查询所有字段） -->
+    <select id="selectById" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表 -->
+    <select id="selectList" parameterType="com.g2rain.knowledge.dto.KnowledgeFeedbackSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+
+    <!-- 插入单条记录（忽略数据隔离） -->
+    <insert id="insertWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 根据 ID 更新记录（忽略数据隔离） -->
+    <update id="updateWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 查询记录（忽略数据隔离） -->
+    <select id="selectByIdWithoutIsolation" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表（忽略数据隔离） -->
+    <select id="selectListWithoutIsolation" parameterType="com.g2rain.knowledge.dto.KnowledgeFeedbackSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+</mapper>

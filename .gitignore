@@ -1,0 +1,7 @@
+.idea/
+target/
+*.iml
+logs/
+data/
+.env
+codegen.local.properties

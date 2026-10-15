@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.g2rain.knowledge.dao.KnowledgeTaskDao">
+    <!-- 通用结果集映射（包含所有字段：主键+基础字段+业务字段） -->
+    <resultMap id="BaseResultMap" type="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        <!-- 主键字段 -->
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <!-- 基础字段（createTime、updateTime） -->
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <!-- 业务字段（其他自定义字段） -->
+        <result column="organ_id" property="organId" jdbcType="BIGINT"/>
+        <result column="revision_id" property="revisionId" jdbcType="BIGINT"/>
+        <result column="task_type" property="taskType" jdbcType="VARCHAR"/>
+        <result column="task_status" property="taskStatus" jdbcType="VARCHAR"/>
+        <result column="idempotency_key" property="idempotencyKey" jdbcType="VARCHAR"/>
+        <result column="attempt_no" property="attemptNo" jdbcType="INTEGER"/>
+        <result column="available_time" property="availableTime" jdbcType="TIMESTAMP"/>
+        <result column="lease_owner" property="leaseOwner" jdbcType="VARCHAR"/>
+        <result column="lease_expire_time" property="leaseExpireTime" jdbcType="TIMESTAMP"/>
+        <result column="provider_name" property="providerName" jdbcType="VARCHAR"/>
+        <result column="model_name" property="modelName" jdbcType="VARCHAR"/>
+        <result column="trace_id" property="traceId" jdbcType="VARCHAR"/>
+        <result column="started_time" property="startedTime" jdbcType="TIMESTAMP"/>
+        <result column="finished_time" property="finishedTime" jdbcType="TIMESTAMP"/>
+        <result column="error_code" property="errorCode" jdbcType="VARCHAR"/>
+        <result column="error_summary" property="errorSummary" jdbcType="VARCHAR"/>
+        <!-- deleteFlag字段（如果存在） -->
+        <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
+        <!-- version字段（如果存在） -->
+        <result column="version" property="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 定义可复用排序方向片段 -->
+    <sql id="directionClause">
+        <choose>
+            <when test="item.direction == 'DESC'">DESC</when>
+            <otherwise>ASC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 可复用的动态排序 SQL 片段 -->
+    <sql id="dynamicOrderBy">
+        <trim prefix="ORDER BY" suffixOverrides=",">
+            <foreach collection="safeSorts" item="item" separator=",">
+                <choose>
+                    <when test="item.column == 'id'">
+                        id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'createTime'">
+                        create_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'updateTime'">
+                        update_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'organId'">
+                        organ_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'revisionId'">
+                        revision_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'taskType'">
+                        task_type
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'taskStatus'">
+                        task_status
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'idempotencyKey'">
+                        idempotency_key
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'attemptNo'">
+                        attempt_no
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'availableTime'">
+                        available_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'leaseOwner'">
+                        lease_owner
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'leaseExpireTime'">
+                        lease_expire_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'providerName'">
+                        provider_name
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'modelName'">
+                        model_name
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'traceId'">
+                        trace_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'startedTime'">
+                        started_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'finishedTime'">
+                        finished_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'errorCode'">
+                        error_code
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'errorSummary'">
+                        error_summary
+                        <include refid="directionClause"/>
+                    </when>
+                </choose>
+            </foreach>
+        </trim>
+    </sql>
+
+    <!-- insert / insertWithoutIsolation 共用 -->
+    <sql id="insertBody">
+        INSERT INTO knowledge_task (
+        <!-- 主键字段（自增主键不包含在插入语句中） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, task_type, task_status, idempotency_key, attempt_no, available_time, lease_owner, lease_expire_time, provider_name, model_name, trace_id, started_time, finished_time, error_code, error_summary,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES (
+        <!-- 主键值（自增主键不包含） -->
+        #{id, jdbcType=BIGINT},
+        <!-- 基础字段值 -->
+        #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
+        <!-- 业务字段值 -->
+        #{organId, jdbcType=BIGINT}, #{revisionId, jdbcType=BIGINT}, #{taskType, jdbcType=VARCHAR}, #{taskStatus, jdbcType=VARCHAR}, #{idempotencyKey, jdbcType=VARCHAR}, #{attemptNo, jdbcType=INTEGER}, #{availableTime, jdbcType=TIMESTAMP}, #{leaseOwner, jdbcType=VARCHAR}, #{leaseExpireTime, jdbcType=TIMESTAMP}, #{providerName, jdbcType=VARCHAR}, #{modelName, jdbcType=VARCHAR}, #{traceId, jdbcType=VARCHAR}, #{startedTime, jdbcType=TIMESTAMP}, #{finishedTime, jdbcType=TIMESTAMP}, #{errorCode, jdbcType=VARCHAR}, #{errorSummary, jdbcType=VARCHAR},
+        <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+        0,
+        <!-- version字段值（如果存在，设置默认值为0） -->
+        0
+        )
+    </sql>
+
+    <!-- update / updateWithoutIsolation 共用 -->
+    <sql id="updateBody">
+        UPDATE knowledge_task
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="taskType != null">
+                task_type = #{taskType, jdbcType=VARCHAR},
+            </if>
+            <if test="taskStatus != null">
+                task_status = #{taskStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="idempotencyKey != null">
+                idempotency_key = #{idempotencyKey, jdbcType=VARCHAR},
+            </if>
+            <if test="attemptNo != null">
+                attempt_no = #{attemptNo, jdbcType=INTEGER},
+            </if>
+            <if test="availableTime != null">
+                available_time = #{availableTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="leaseOwner != null">
+                lease_owner = #{leaseOwner, jdbcType=VARCHAR},
+            </if>
+            <if test="leaseExpireTime != null">
+                lease_expire_time = #{leaseExpireTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="providerName != null">
+                provider_name = #{providerName, jdbcType=VARCHAR},
+            </if>
+            <if test="modelName != null">
+                model_name = #{modelName, jdbcType=VARCHAR},
+            </if>
+            <if test="traceId != null">
+                trace_id = #{traceId, jdbcType=VARCHAR},
+            </if>
+            <if test="startedTime != null">
+                started_time = #{startedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="finishedTime != null">
+                finished_time = #{finishedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="errorCode != null">
+                error_code = #{errorCode, jdbcType=VARCHAR},
+            </if>
+            <if test="errorSummary != null">
+                error_summary = #{errorSummary, jdbcType=VARCHAR},
+            </if>
+            <!-- version字段更新（如果存在，版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+    </sql>
+
+    <!-- selectById / selectByIdWithoutIsolation 共用 -->
+    <sql id="selectByIdBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, task_type, task_status, idempotency_key, attempt_no, available_time, lease_owner, lease_expire_time, provider_name, model_name, trace_id, started_time, finished_time, error_code, error_summary,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_task
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 过滤已删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </sql>
+
+    <!-- selectList / selectListWithoutIsolation 共用 -->
+    <sql id="selectListBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, task_type, task_status, idempotency_key, attempt_no, available_time, lease_owner, lease_expire_time, provider_name, model_name, trace_id, started_time, finished_time, error_code, error_summary,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_task
+        <where>
+            <!-- 主键筛选 -->
+            <if test="id != null">
+                AND id = #{id, jdbcType=BIGINT}
+            </if>
+            <if test="ids != null and ids.size() > 0">
+                AND id IN
+                <foreach collection="ids" item="item" open="(" separator="," close=")">
+                    #{item, jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <!-- 基础字段筛选（createTime和updateTime时间筛选） -->
+            <if test="createTime != null">
+                <if test="createTime[0] != '' and (createTime.size() lt 2 or createTime[1] == '')">
+                    AND create_time >= #{createTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] == '' and createTime[1] != ''">
+                    AND create_time &lt;= #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] != '' and createTime[1] != ''">
+                    AND create_time BETWEEN #{createTime[0], jdbcType=TIMESTAMP}
+                    AND #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <if test="updateTime != null">
+                <if test="updateTime[0] != '' and (updateTime.size() lt 2 or updateTime[1] == '')">
+                    AND update_time >= #{updateTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] == '' and updateTime[1] != ''">
+                    AND update_time &lt;= #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] != '' and updateTime[1] != ''">
+                    AND update_time BETWEEN #{updateTime[0], jdbcType=TIMESTAMP}
+                    AND #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <!-- 业务字段筛选 -->
+            <if test="organId != null">
+                AND organ_id = #{organId, jdbcType=BIGINT}
+            </if>
+            <if test="revisionId != null">
+                AND revision_id = #{revisionId, jdbcType=BIGINT}
+            </if>
+            <if test="taskType != null">
+                AND task_type = #{taskType, jdbcType=VARCHAR}
+            </if>
+            <if test="taskStatus != null">
+                AND task_status = #{taskStatus, jdbcType=VARCHAR}
+            </if>
+            <if test="idempotencyKey != null">
+                AND idempotency_key = #{idempotencyKey, jdbcType=VARCHAR}
+            </if>
+            <if test="attemptNo != null">
+                AND attempt_no = #{attemptNo, jdbcType=INTEGER}
+            </if>
+            <if test="availableTime != null">
+                AND available_time = #{availableTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="leaseOwner != null">
+                AND lease_owner = #{leaseOwner, jdbcType=VARCHAR}
+            </if>
+            <if test="leaseExpireTime != null">
+                AND lease_expire_time = #{leaseExpireTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="providerName != null">
+                AND provider_name = #{providerName, jdbcType=VARCHAR}
+            </if>
+            <if test="modelName != null">
+                AND model_name = #{modelName, jdbcType=VARCHAR}
+            </if>
+            <if test="traceId != null">
+                AND trace_id = #{traceId, jdbcType=VARCHAR}
+            </if>
+            <if test="startedTime != null">
+                AND started_time = #{startedTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="finishedTime != null">
+                AND finished_time = #{finishedTime, jdbcType=TIMESTAMP}
+            </if>
+            <if test="errorCode != null">
+                AND error_code = #{errorCode, jdbcType=VARCHAR}
+            </if>
+            <if test="errorSummary != null">
+                AND error_summary = #{errorSummary, jdbcType=VARCHAR}
+            </if>
+            <!-- 过滤已删除的记录 -->
+            AND (delete_flag = 0 OR delete_flag IS NULL)
+        </where>
+        <include refid="dynamicOrderBy"/>
+    </sql>
+
+    <!-- 插入单条记录 -->
+    <insert id="insert" parameterType="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 批量插入记录 -->
+    <insert id="insertMultiple" parameterType="java.util.List">
+        INSERT INTO knowledge_task (
+        <!-- 主键字段（自增主键不包含） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, task_type, task_status, idempotency_key, attempt_no, available_time, lease_owner, lease_expire_time, provider_name, model_name, trace_id, started_time, finished_time, error_code, error_summary,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            <!-- 主键值（自增主键不包含） -->
+            #{item.id, jdbcType=BIGINT},
+            <!-- 基础字段值 -->
+            #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
+            <!-- 业务字段值 -->
+            #{item.organId, jdbcType=BIGINT}, #{item.revisionId, jdbcType=BIGINT}, #{item.taskType, jdbcType=VARCHAR}, #{item.taskStatus, jdbcType=VARCHAR}, #{item.idempotencyKey, jdbcType=VARCHAR}, #{item.attemptNo, jdbcType=INTEGER}, #{item.availableTime, jdbcType=TIMESTAMP}, #{item.leaseOwner, jdbcType=VARCHAR}, #{item.leaseExpireTime, jdbcType=TIMESTAMP}, #{item.providerName, jdbcType=VARCHAR}, #{item.modelName, jdbcType=VARCHAR}, #{item.traceId, jdbcType=VARCHAR}, #{item.startedTime, jdbcType=TIMESTAMP}, #{item.finishedTime, jdbcType=TIMESTAMP}, #{item.errorCode, jdbcType=VARCHAR}, #{item.errorSummary, jdbcType=VARCHAR},
+            <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+            0,
+            <!-- version字段值（如果存在，设置默认值为0） -->
+            0
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据 ID 更新记录（包含基础字段和业务字段） -->
+    <update id="update" parameterType="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 和 Version 更新记录（乐观锁更新，包含基础字段和业务字段） -->
+    <update id="updateByVersion" parameterType="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        UPDATE knowledge_task
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="taskType != null">
+                task_type = #{taskType, jdbcType=VARCHAR},
+            </if>
+            <if test="taskStatus != null">
+                task_status = #{taskStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="idempotencyKey != null">
+                idempotency_key = #{idempotencyKey, jdbcType=VARCHAR},
+            </if>
+            <if test="attemptNo != null">
+                attempt_no = #{attemptNo, jdbcType=INTEGER},
+            </if>
+            <if test="availableTime != null">
+                available_time = #{availableTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="leaseOwner != null">
+                lease_owner = #{leaseOwner, jdbcType=VARCHAR},
+            </if>
+            <if test="leaseExpireTime != null">
+                lease_expire_time = #{leaseExpireTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="providerName != null">
+                provider_name = #{providerName, jdbcType=VARCHAR},
+            </if>
+            <if test="modelName != null">
+                model_name = #{modelName, jdbcType=VARCHAR},
+            </if>
+            <if test="traceId != null">
+                trace_id = #{traceId, jdbcType=VARCHAR},
+            </if>
+            <if test="startedTime != null">
+                started_time = #{startedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="finishedTime != null">
+                finished_time = #{finishedTime, jdbcType=TIMESTAMP},
+            </if>
+            <if test="errorCode != null">
+                error_code = #{errorCode, jdbcType=VARCHAR},
+            </if>
+            <if test="errorSummary != null">
+                error_summary = #{errorSummary, jdbcType=VARCHAR},
+            </if>
+            <!-- version字段更新（乐观锁版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        AND version = #{version, jdbcType=INTEGER}
+    </update>
+
+    <!-- 根据 ID 删除记录（逻辑删除：将delete_flag设置为true） -->
+    <update id="delete" parameterType="Long">
+        UPDATE knowledge_task
+        <set>
+            delete_flag = 1, version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 只删除未删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <!-- 根据 ID 查询记录（查询所有字段） -->
+    <select id="selectById" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表 -->
+    <select id="selectList" parameterType="com.g2rain.knowledge.dto.KnowledgeTaskSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+
+    <!-- 插入单条记录（忽略数据隔离） -->
+    <insert id="insertWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 根据 ID 更新记录（忽略数据隔离） -->
+    <update id="updateWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeTaskPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 查询记录（忽略数据隔离） -->
+    <select id="selectByIdWithoutIsolation" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表（忽略数据隔离） -->
+    <select id="selectListWithoutIsolation" parameterType="com.g2rain.knowledge.dto.KnowledgeTaskSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+
+    <update id="claim">
+        UPDATE knowledge_task SET task_status = 'RUNNING', lease_owner = #{workerId},
+        lease_expire_time = #{leaseExpireTime}, started_time = #{now}, update_time = #{now}, version = version + 1
+        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'PENDING'
+        AND available_time &lt;= #{now} AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <update id="complete">
+        UPDATE knowledge_task SET task_status = 'SUCCESS', finished_time = #{now}, update_time = #{now}, version = version + 1
+        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'RUNNING'
+        AND lease_owner = #{workerId} AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <update id="fail">
+        UPDATE knowledge_task SET task_status = 'FAILED', error_code = #{errorCode}, error_summary = #{errorSummary},
+        finished_time = #{now}, update_time = #{now}, version = version + 1
+        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'RUNNING'
+        AND lease_owner = #{workerId} AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+    <update id="retryFailed">
+        UPDATE knowledge_task
+        SET task_status = 'PENDING',
+            available_time = #{availableTime, jdbcType=TIMESTAMP},
+            lease_owner = NULL,
+            lease_expire_time = NULL,
+            started_time = NULL,
+            finished_time = NULL,
+            error_code = NULL,
+            error_summary = NULL,
+            update_time = #{updateTime, jdbcType=TIMESTAMP},
+            version = version + 1
+        WHERE id = #{taskId, jdbcType=BIGINT}
+          AND organ_id = #{organId, jdbcType=BIGINT}
+          AND version = #{expectedVersion, jdbcType=INTEGER}
+          AND task_status = 'FAILED'
+          AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <update id="cancelPending">
+        UPDATE knowledge_task
+        SET task_status = 'CANCELED',
+            finished_time = #{finishedTime, jdbcType=TIMESTAMP},
+            update_time = #{updateTime, jdbcType=TIMESTAMP},
+            version = version + 1
+        WHERE id = #{taskId, jdbcType=BIGINT}
+          AND organ_id = #{organId, jdbcType=BIGINT}
+          AND version = #{expectedVersion, jdbcType=INTEGER}
+          AND task_status = 'PENDING'
+          AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+</mapper>

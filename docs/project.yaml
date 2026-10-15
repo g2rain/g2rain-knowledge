@@ -1,0 +1,101 @@
+schemaVersion: 1
+name: g2rain-knowledge
+repository: g2rain/g2rain-knowledge
+family: java-domain-service
+architectureType: knowledge-retrieval-service
+role: G2rain 客服与 Agent 知识库服务
+status: in-progress
+
+architectureProfile:
+  adoption: planned
+  reason: 本服务拥有独立知识领域数据并以 Java/Spring Boot 运行，采用 java-domain-service；已建立三模块工程并开始实现领域用例。
+
+architectureBaseline:
+  repository: https://github.com/g2rain/g2rain
+  ref: architecture-v1.0.0
+  profile: docs/architecture/profiles/java-domain-service
+  version: 1.0.0
+  deviations: docs/architecture/deviations.md
+
+evidence:
+  verifiedImplementation: partially
+  sources:
+    - pom.xml
+    - g2rain-knowledge-api/
+    - g2rain-knowledge-biz/
+    - g2rain-knowledge-startup/
+    - docs/development/implementation-plan.md
+  missing:
+    - deployment manifests
+    - Docling、Embedding、Rerank 与 Milvus 的已验证集成契约
+    - MySQL 事务、组织隔离与发布一致性的真实环境集成测试
+    - 发布顺序修正、offline/reconcile、任务并发列接线
+
+ownership:
+  owns:
+    - 知识文件与 FAQ 的接收、版本、审核、发布与审计
+    - 文档解析、切片、向量化、索引和检索编排
+    - 生效版本裁决、引用生成和检索证据返回
+    - 基于可信证据与服务端模板的受控问答（POST /knowledge/answer）
+  excludes:
+    - Agent Runtime 的会话编排与多轮对话状态（本服务不持有会话）
+    - Docling、Embedding、Rerank、Milvus 和 MySQL 的基础设施生命周期
+    - 外部模型的训练、模型权重和模型账号生命周期
+
+implementationBaseline:
+  commonLibrary: g2rain-common
+  crudGenerator: g2rain-generator-maven-plugin
+  required:
+    - 复用公共 PO、DTO、VO、ID、主体上下文、校验、错误与返回契约
+    - 使用生成器生成 knowledge_* 表的基础 CRUD
+    - 使用 organ_id 隔离和 delete_flag 逻辑删除生成规则
+  detail: docs/architecture/g2rain-foundation.md
+
+intendedRuntime:
+  language: Java
+  storage: local persistent disk
+  metadataStore: MySQL
+  vectorStore: Milvus
+  parser: Docling Serve
+  dependencies:
+    - Model Nexus embeddings（POST /v1/embeddings）
+    - Model Nexus rerank（POST /v1/rerank）
+    - Model Nexus chat completions（受控问答，POST /v1/chat/completions）
+    - g2rain-deploy internal network
+
+publicContracts:
+  - POST /knowledge/retrieve
+  - POST /knowledge/answer
+plannedConfiguration:
+  - KNOWLEDGE_STORAGE_ROOT
+  - DOCLING_BASE_URL
+  - MILVUS_URI
+  - MILVUS_TOKEN
+  - KNOWLEDGE_MILVUS_COLLECTION
+  - MYSQL_HOST
+  - MYSQL_PORT
+  - MODEL_NEXUS_BASE_URL
+  - KNOWLEDGE_EMBEDDING_MODEL
+  - KNOWLEDGE_EMBEDDING_DIMENSION
+  - KNOWLEDGE_RERANK_BASE_URL
+  - KNOWLEDGE_RERANK_MODEL
+  - KNOWLEDGE_ANSWER_BASE_URL
+  - KNOWLEDGE_ANSWER_MODEL
+  - KNOWLEDGE_RETRIEVE_DEFAULT_TOP_K
+  - KNOWLEDGE_RETRIEVE_MAX_TOP_K
+  - KNOWLEDGE_RETRIEVE_TOTAL_TIMEOUT_MS
+
+commands:
+  moduleTest: mvn -pl g2rain-knowledge-biz -am test
+  fullVerification: mvn clean verify
+verification:
+  status: partially-verified
+  reason: >
+    2026-10-08 已执行 mvn clean verify（通过，Biz 19 tests，0 failures / 0 errors / 0 skipped）。
+    本轮落地：文档冻结、VO 脱敏、replaceFile/retry/cancel HTTP、Retrieve Deadline/503/traceId/hash。
+    未验证：真实 MySQL/Milvus IT、replaceFile 端到端、发布顺序/offline/reconcile、任务并发列、P6/P7。
+
+documentation:
+  entry: docs/index.md
+  agentEntry: AGENTS.md
+  activeRequirement: docs/requirements/RQ-003-knowledge-domain-rules.md

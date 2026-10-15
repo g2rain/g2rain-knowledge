@@ -1,0 +1,210 @@
+package com.g2rain.knowledge.service.impl;
+
+import com.g2rain.common.exception.BusinessException;
+import com.g2rain.common.exception.SystemErrorCode;
+import com.g2rain.common.id.IdGenerator;
+import com.g2rain.common.model.PageData;
+import com.g2rain.common.model.PageSelectListDto;
+import com.g2rain.common.utils.Asserts;
+import com.g2rain.common.utils.Moments;
+import com.g2rain.common.validation.Validations;
+import com.g2rain.knowledge.converter.KnowledgeReleaseConverter;
+import com.g2rain.knowledge.client.milvus.MilvusKnowledgeClient;
+import com.g2rain.knowledge.client.milvus.MilvusProperties;
+import com.g2rain.knowledge.dao.KnowledgeReleaseDao;
+import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
+import com.g2rain.knowledge.dao.po.KnowledgeReleasePo;
+import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
+import com.g2rain.knowledge.dto.KnowledgeReleaseDto;
+import com.g2rain.knowledge.dto.KnowledgeReleasePublishDto;
+import com.g2rain.knowledge.dto.KnowledgeReleaseRollbackDto;
+import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeErrorCode;
+import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
+import com.g2rain.knowledge.service.KnowledgeAccessService;
+import com.g2rain.knowledge.service.KnowledgeReleaseService;
+import com.g2rain.knowledge.vo.KnowledgeReleaseVo;
+import com.g2rain.mybatis.pagination.PageContext;
+import com.g2rain.mybatis.pagination.model.Page;
+import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * 知识发布选择表服务实现类
+ * 表名: knowledge_release
+ *
+ * @author G2rain Generator
+ */
+@Service(value = "knowledgeReleaseServiceImpl")
+public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
+
+    @Resource(name = "knowledgeReleaseDao")
+    private KnowledgeReleaseDao knowledgeReleaseDao;
+
+    @Resource
+    private KnowledgeRevisionDao knowledgeRevisionDao;
+    @Resource
+    private KnowledgeAccessService knowledgeAccessService;
+    @Resource
+    private MilvusKnowledgeClient milvusKnowledgeClient;
+    @Resource
+    private MilvusProperties milvusProperties;
+
+    private IdGenerator idGenerator;
+
+    @Qualifier("idGenerator")
+    @Autowired(required = false)
+    public void setIdGenerator(IdGenerator idGenerator) {
+        this.idGenerator = idGenerator;
+    }
+
+    @Override
+    public List<KnowledgeReleaseVo> selectList(KnowledgeReleaseSelectDto selectDto) {
+        return knowledgeReleaseDao.selectList(selectDto)
+            .stream()
+            .map(KnowledgeReleaseConverter.INSTANCE::po2vo)
+            .toList();
+    }
+
+    @Override
+    public PageData<KnowledgeReleaseVo> selectPage(PageSelectListDto<KnowledgeReleaseSelectDto> selectDto) {
+        Page<KnowledgeReleasePo> page = PageContext.of(selectDto.getPageNum(), selectDto.getPageSize(), () -> {
+            knowledgeReleaseDao.selectList(selectDto.getQuery());
+        });
+        List<KnowledgeReleaseVo> result = page.getResult()
+            .stream()
+            .map(KnowledgeReleaseConverter.INSTANCE::po2vo)
+            .toList();
+        return PageData.of(page.getPageNum(), page.getPageSize(), page.getTotal(), result);
+    }
+
+    @Override
+    public Long save(KnowledgeReleaseDto dto) {
+        Validations.validateSave(dto);
+
+        // 转换 DTO 为 PO
+        KnowledgeReleasePo entity = KnowledgeReleaseConverter.INSTANCE.dto2po(dto);
+
+        // 判断是新增还是更新
+        Long id = entity.getId();
+        if (Objects.isNull(id) || id == 0) {
+            // 新增：使用IdGenerator生成主键
+            entity.setId(idGenerator.generateId());
+            LocalDateTime now = Moments.now();
+            entity.setUpdateTime(now);
+            entity.setCreateTime(now);
+            int success = knowledgeReleaseDao.insert(entity);
+            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
+        } else {
+            KnowledgeReleasePo existing = knowledgeReleaseDao.selectById(id);
+            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+            // 更新：直接更新
+            entity.setUpdateTime(Moments.now());
+            int success = knowledgeReleaseDao.update(entity);
+            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+        }
+
+        return entity.getId();
+    }
+
+    @Override
+    @Transactional
+    public Long publish(KnowledgeReleasePublishDto dto) {
+        return switchActiveRevision(dto, false);
+    }
+
+    @Override
+    @Transactional
+    public Long rollback(KnowledgeReleaseRollbackDto dto) {
+        return switchActiveRevision(dto, true);
+    }
+
+    private Long switchActiveRevision(KnowledgeReleasePublishDto dto, boolean restoringDeprecated) {
+        KnowledgeReleasePo release = requireRelease(dto);
+        KnowledgeRevisionPo target = requireTarget(dto, release, restoringDeprecated);
+        Long previousRevisionId = release.getActiveRevisionId();
+
+        // The target has already passed the full staged-index reconciliation. Publishing only changes visibility.
+        milvusKnowledgeClient.setSearchable(milvusProperties.getCollectionName(), target.getOrganId(), target.getId(), true);
+
+        LocalDateTime now = Moments.now();
+        KnowledgeReleasePo releaseUpdate = new KnowledgeReleasePo();
+        releaseUpdate.setId(release.getId());
+        releaseUpdate.setVersion(dto.getExpectedReleaseVersion());
+        releaseUpdate.setActiveRevisionId(target.getId());
+        releaseUpdate.setReleaseStatus("PUBLISHED");
+        releaseUpdate.setPublishedUserId(knowledgeAccessService.currentUserId());
+        releaseUpdate.setPublishedTime(now);
+        releaseUpdate.setReleaseReason(dto.getReason());
+        releaseUpdate.setUpdateTime(now);
+        if (knowledgeReleaseDao.updateByVersion(releaseUpdate) != 1) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
+        }
+
+        updateRevisionStatus(target, dto.getExpectedRevisionVersion(), KnowledgeRevisionStatus.PUBLISHED.name(), now);
+        if (previousRevisionId != null && !previousRevisionId.equals(target.getId())) {
+            KnowledgeRevisionPo previous = knowledgeRevisionDao.selectById(previousRevisionId);
+            if (previous != null) {
+                knowledgeAccessService.assertSameOrgan(previous.getOrganId());
+                updateRevisionStatus(previous, previous.getVersion(), KnowledgeRevisionStatus.DEPRECATED.name(), now);
+                milvusKnowledgeClient.setSearchable(milvusProperties.getCollectionName(), target.getOrganId(), previousRevisionId, false);
+            }
+        }
+        return release.getId();
+    }
+
+    @Override
+    public int delete(Long id) {
+        KnowledgeReleasePo existing = knowledgeReleaseDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        return knowledgeReleaseDao.delete(id);
+    }
+
+    private KnowledgeReleasePo requireRelease(KnowledgeReleasePublishDto dto) {
+        KnowledgeReleasePo release = knowledgeReleaseDao.selectById(dto.getReleaseId());
+        if (release == null) throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, dto.getReleaseId());
+        knowledgeAccessService.assertSameOrgan(release.getOrganId());
+        if (!Objects.equals(release.getVersion(), dto.getExpectedReleaseVersion())) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
+        }
+        return release;
+    }
+
+    private KnowledgeRevisionPo requireTarget(KnowledgeReleasePublishDto dto, KnowledgeReleasePo release, boolean restoringDeprecated) {
+        KnowledgeRevisionPo target = knowledgeRevisionDao.selectById(dto.getRevisionId());
+        if (target == null) throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, dto.getRevisionId());
+        knowledgeAccessService.assertSameOrgan(target.getOrganId());
+        if (!Objects.equals(target.getKnowledgeId(), release.getKnowledgeId())) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_TARGET_MISMATCH);
+        }
+        if (!Objects.equals(target.getVersion(), dto.getExpectedRevisionVersion())) {
+            throw new BusinessException(KnowledgeErrorCode.REVISION_VERSION_CONFLICT);
+        }
+        boolean permitted = restoringDeprecated
+            ? KnowledgeRevisionStatus.DEPRECATED.name().equals(target.getRevisionStatus())
+            : KnowledgeRevisionStatus.READY_TO_PUBLISH.name().equals(target.getRevisionStatus())
+                || KnowledgeRevisionStatus.PUBLISHED.name().equals(target.getRevisionStatus());
+        if (!permitted) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_NOT_PUBLISHABLE);
+        }
+        return target;
+    }
+
+    private void updateRevisionStatus(KnowledgeRevisionPo revision, Integer expectedVersion, String status, LocalDateTime now) {
+        KnowledgeRevisionPo update = new KnowledgeRevisionPo();
+        update.setId(revision.getId());
+        update.setVersion(expectedVersion);
+        update.setRevisionStatus(status);
+        update.setUpdateTime(now);
+        if (knowledgeRevisionDao.updateByVersion(update) != 1) {
+            throw new BusinessException(KnowledgeErrorCode.REVISION_VERSION_CONFLICT);
+        }
+    }
+}

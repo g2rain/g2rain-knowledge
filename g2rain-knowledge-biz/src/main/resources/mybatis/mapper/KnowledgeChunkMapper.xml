@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.g2rain.knowledge.dao.KnowledgeChunkDao">
+    <!-- 通用结果集映射（包含所有字段：主键+基础字段+业务字段） -->
+    <resultMap id="BaseResultMap" type="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        <!-- 主键字段 -->
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <!-- 基础字段（createTime、updateTime） -->
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <!-- 业务字段（其他自定义字段） -->
+        <result column="organ_id" property="organId" jdbcType="BIGINT"/>
+        <result column="revision_id" property="revisionId" jdbcType="BIGINT"/>
+        <result column="chunk_no" property="chunkNo" jdbcType="INTEGER"/>
+        <result column="parent_chunk_no" property="parentChunkNo" jdbcType="INTEGER"/>
+        <result column="source_locator" property="sourceLocator" jdbcType="VARCHAR"/>
+        <result column="page_start" property="pageStart" jdbcType="INTEGER"/>
+        <result column="page_end" property="pageEnd" jdbcType="INTEGER"/>
+        <result column="token_count" property="tokenCount" jdbcType="INTEGER"/>
+        <result column="content_sha256" property="contentSha256" jdbcType="CHAR"/>
+        <result column="chunk_status" property="chunkStatus" jdbcType="VARCHAR"/>
+        <result column="title_path" property="titlePath" jdbcType="LONGVARCHAR"/>
+        <!-- deleteFlag字段（如果存在） -->
+        <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
+        <!-- version字段（如果存在） -->
+        <result column="version" property="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 定义可复用排序方向片段 -->
+    <sql id="directionClause">
+        <choose>
+            <when test="item.direction == 'DESC'">DESC</when>
+            <otherwise>ASC</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 可复用的动态排序 SQL 片段 -->
+    <sql id="dynamicOrderBy">
+        <trim prefix="ORDER BY" suffixOverrides=",">
+            <foreach collection="safeSorts" item="item" separator=",">
+                <choose>
+                    <when test="item.column == 'id'">
+                        id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'createTime'">
+                        create_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'updateTime'">
+                        update_time
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'organId'">
+                        organ_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'revisionId'">
+                        revision_id
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'chunkNo'">
+                        chunk_no
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'parentChunkNo'">
+                        parent_chunk_no
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'sourceLocator'">
+                        source_locator
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'pageStart'">
+                        page_start
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'pageEnd'">
+                        page_end
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'tokenCount'">
+                        token_count
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'contentSha256'">
+                        content_sha256
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'chunkStatus'">
+                        chunk_status
+                        <include refid="directionClause"/>
+                    </when>
+                    <when test="item.column == 'titlePath'">
+                        title_path
+                        <include refid="directionClause"/>
+                    </when>
+                </choose>
+            </foreach>
+        </trim>
+    </sql>
+
+    <!-- insert / insertWithoutIsolation 共用 -->
+    <sql id="insertBody">
+        INSERT INTO knowledge_chunk (
+        <!-- 主键字段（自增主键不包含在插入语句中） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_no, parent_chunk_no, source_locator, page_start, page_end, token_count, content_sha256, chunk_status, title_path,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES (
+        <!-- 主键值（自增主键不包含） -->
+        #{id, jdbcType=BIGINT},
+        <!-- 基础字段值 -->
+        #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
+        <!-- 业务字段值 -->
+        #{organId, jdbcType=BIGINT}, #{revisionId, jdbcType=BIGINT}, #{chunkNo, jdbcType=INTEGER}, #{parentChunkNo, jdbcType=INTEGER}, #{sourceLocator, jdbcType=VARCHAR}, #{pageStart, jdbcType=INTEGER}, #{pageEnd, jdbcType=INTEGER}, #{tokenCount, jdbcType=INTEGER}, #{contentSha256, jdbcType=CHAR}, #{chunkStatus, jdbcType=VARCHAR}, #{titlePath, jdbcType=LONGVARCHAR},
+        <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+        0,
+        <!-- version字段值（如果存在，设置默认值为0） -->
+        0
+        )
+    </sql>
+
+    <!-- update / updateWithoutIsolation 共用 -->
+    <sql id="updateBody">
+        UPDATE knowledge_chunk
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="chunkNo != null">
+                chunk_no = #{chunkNo, jdbcType=INTEGER},
+            </if>
+            <if test="parentChunkNo != null">
+                parent_chunk_no = #{parentChunkNo, jdbcType=INTEGER},
+            </if>
+            <if test="sourceLocator != null">
+                source_locator = #{sourceLocator, jdbcType=VARCHAR},
+            </if>
+            <if test="pageStart != null">
+                page_start = #{pageStart, jdbcType=INTEGER},
+            </if>
+            <if test="pageEnd != null">
+                page_end = #{pageEnd, jdbcType=INTEGER},
+            </if>
+            <if test="tokenCount != null">
+                token_count = #{tokenCount, jdbcType=INTEGER},
+            </if>
+            <if test="contentSha256 != null">
+                content_sha256 = #{contentSha256, jdbcType=CHAR},
+            </if>
+            <if test="chunkStatus != null">
+                chunk_status = #{chunkStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="titlePath != null">
+                title_path = #{titlePath, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（如果存在，版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+    </sql>
+
+    <!-- selectById / selectByIdWithoutIsolation 共用 -->
+    <sql id="selectByIdBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_no, parent_chunk_no, source_locator, page_start, page_end, token_count, content_sha256, chunk_status, title_path,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_chunk
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 过滤已删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </sql>
+
+    <!-- selectList / selectListWithoutIsolation 共用 -->
+    <sql id="selectListBody">
+        SELECT
+        <!-- 主键字段 -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_no, parent_chunk_no, source_locator, page_start, page_end, token_count, content_sha256, chunk_status, title_path,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        FROM knowledge_chunk
+        <where>
+            <!-- 主键筛选 -->
+            <if test="id != null">
+                AND id = #{id, jdbcType=BIGINT}
+            </if>
+            <if test="ids != null and ids.size() > 0">
+                AND id IN
+                <foreach collection="ids" item="item" open="(" separator="," close=")">
+                    #{item, jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <!-- 基础字段筛选（createTime和updateTime时间筛选） -->
+            <if test="createTime != null">
+                <if test="createTime[0] != '' and (createTime.size() lt 2 or createTime[1] == '')">
+                    AND create_time >= #{createTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] == '' and createTime[1] != ''">
+                    AND create_time &lt;= #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="createTime.size() >= 2 and createTime[0] != '' and createTime[1] != ''">
+                    AND create_time BETWEEN #{createTime[0], jdbcType=TIMESTAMP}
+                    AND #{createTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <if test="updateTime != null">
+                <if test="updateTime[0] != '' and (updateTime.size() lt 2 or updateTime[1] == '')">
+                    AND update_time >= #{updateTime[0], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] == '' and updateTime[1] != ''">
+                    AND update_time &lt;= #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+                <if test="updateTime.size() >= 2 and updateTime[0] != '' and updateTime[1] != ''">
+                    AND update_time BETWEEN #{updateTime[0], jdbcType=TIMESTAMP}
+                    AND #{updateTime[1], jdbcType=TIMESTAMP}
+                </if>
+            </if>
+            <!-- 业务字段筛选 -->
+            <if test="organId != null">
+                AND organ_id = #{organId, jdbcType=BIGINT}
+            </if>
+            <if test="revisionId != null">
+                AND revision_id = #{revisionId, jdbcType=BIGINT}
+            </if>
+            <if test="chunkNo != null">
+                AND chunk_no = #{chunkNo, jdbcType=INTEGER}
+            </if>
+            <if test="parentChunkNo != null">
+                AND parent_chunk_no = #{parentChunkNo, jdbcType=INTEGER}
+            </if>
+            <if test="sourceLocator != null">
+                AND source_locator = #{sourceLocator, jdbcType=VARCHAR}
+            </if>
+            <if test="pageStart != null">
+                AND page_start = #{pageStart, jdbcType=INTEGER}
+            </if>
+            <if test="pageEnd != null">
+                AND page_end = #{pageEnd, jdbcType=INTEGER}
+            </if>
+            <if test="tokenCount != null">
+                AND token_count = #{tokenCount, jdbcType=INTEGER}
+            </if>
+            <if test="contentSha256 != null">
+                AND content_sha256 = #{contentSha256, jdbcType=CHAR}
+            </if>
+            <if test="chunkStatus != null">
+                AND chunk_status = #{chunkStatus, jdbcType=VARCHAR}
+            </if>
+            <if test="titlePath != null">
+                AND title_path = #{titlePath, jdbcType=LONGVARCHAR}
+            </if>
+            <!-- 过滤已删除的记录 -->
+            AND (delete_flag = 0 OR delete_flag IS NULL)
+        </where>
+        <include refid="dynamicOrderBy"/>
+    </sql>
+
+    <!-- 插入单条记录 -->
+    <insert id="insert" parameterType="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 批量插入记录 -->
+    <insert id="insertMultiple" parameterType="java.util.List">
+        INSERT INTO knowledge_chunk (
+        <!-- 主键字段（自增主键不包含） -->
+        id,
+        <!-- 基础字段 -->
+        create_time, update_time,
+        <!-- 业务字段 -->
+        organ_id, revision_id, chunk_no, parent_chunk_no, source_locator, page_start, page_end, token_count, content_sha256, chunk_status, title_path,
+        <!-- deleteFlag字段（如果存在） -->
+        delete_flag,
+        <!-- version字段（如果存在） -->
+        version
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            <!-- 主键值（自增主键不包含） -->
+            #{item.id, jdbcType=BIGINT},
+            <!-- 基础字段值 -->
+            #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
+            <!-- 业务字段值 -->
+            #{item.organId, jdbcType=BIGINT}, #{item.revisionId, jdbcType=BIGINT}, #{item.chunkNo, jdbcType=INTEGER}, #{item.parentChunkNo, jdbcType=INTEGER}, #{item.sourceLocator, jdbcType=VARCHAR}, #{item.pageStart, jdbcType=INTEGER}, #{item.pageEnd, jdbcType=INTEGER}, #{item.tokenCount, jdbcType=INTEGER}, #{item.contentSha256, jdbcType=CHAR}, #{item.chunkStatus, jdbcType=VARCHAR}, #{item.titlePath, jdbcType=LONGVARCHAR},
+            <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
+            0,
+            <!-- version字段值（如果存在，设置默认值为0） -->
+            0
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据 ID 更新记录（包含基础字段和业务字段） -->
+    <update id="update" parameterType="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 和 Version 更新记录（乐观锁更新，包含基础字段和业务字段） -->
+    <update id="updateByVersion" parameterType="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        UPDATE knowledge_chunk
+        <set>
+            <!-- 基础字段更新（排除version，version单独处理） -->
+            <if test="updateTime != null">
+                update_time = #{updateTime, jdbcType=TIMESTAMP},
+            </if>
+            <!-- 业务字段更新 -->
+            <if test="organId != null">
+                organ_id = #{organId, jdbcType=BIGINT},
+            </if>
+            <if test="revisionId != null">
+                revision_id = #{revisionId, jdbcType=BIGINT},
+            </if>
+            <if test="chunkNo != null">
+                chunk_no = #{chunkNo, jdbcType=INTEGER},
+            </if>
+            <if test="parentChunkNo != null">
+                parent_chunk_no = #{parentChunkNo, jdbcType=INTEGER},
+            </if>
+            <if test="sourceLocator != null">
+                source_locator = #{sourceLocator, jdbcType=VARCHAR},
+            </if>
+            <if test="pageStart != null">
+                page_start = #{pageStart, jdbcType=INTEGER},
+            </if>
+            <if test="pageEnd != null">
+                page_end = #{pageEnd, jdbcType=INTEGER},
+            </if>
+            <if test="tokenCount != null">
+                token_count = #{tokenCount, jdbcType=INTEGER},
+            </if>
+            <if test="contentSha256 != null">
+                content_sha256 = #{contentSha256, jdbcType=CHAR},
+            </if>
+            <if test="chunkStatus != null">
+                chunk_status = #{chunkStatus, jdbcType=VARCHAR},
+            </if>
+            <if test="titlePath != null">
+                title_path = #{titlePath, jdbcType=LONGVARCHAR},
+            </if>
+            <!-- version字段更新（乐观锁版本号自增） -->
+            version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        AND version = #{version, jdbcType=INTEGER}
+    </update>
+
+    <!-- 根据 ID 删除记录（逻辑删除：将delete_flag设置为true） -->
+    <update id="delete" parameterType="Long">
+        UPDATE knowledge_chunk
+        <set>
+            delete_flag = 1, version = version + 1
+        </set>
+        WHERE id = #{id, jdbcType=BIGINT}
+        <!-- 只删除未删除的记录 -->
+        AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+
+    <!-- 根据 ID 查询记录（查询所有字段） -->
+    <select id="selectById" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表 -->
+    <select id="selectList" parameterType="com.g2rain.knowledge.dto.KnowledgeChunkSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+
+    <!-- 插入单条记录（忽略数据隔离） -->
+    <insert id="insertWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        <include refid="insertBody"/>
+    </insert>
+
+    <!-- 根据 ID 更新记录（忽略数据隔离） -->
+    <update id="updateWithoutIsolation" parameterType="com.g2rain.knowledge.dao.po.KnowledgeChunkPo">
+        <include refid="updateBody"/>
+    </update>
+
+    <!-- 根据 ID 查询记录（忽略数据隔离） -->
+    <select id="selectByIdWithoutIsolation" parameterType="Long" resultMap="BaseResultMap">
+        <include refid="selectByIdBody"/>
+    </select>
+
+    <!-- 根据 SelectDto 条件查询列表（忽略数据隔离） -->
+    <select id="selectListWithoutIsolation" parameterType="com.g2rain.knowledge.dto.KnowledgeChunkSelectDto" resultMap="BaseResultMap">
+        <include refid="selectListBody"/>
+    </select>
+    <update id="markIndexedByRevisionId">
+        UPDATE knowledge_chunk SET chunk_status = 'INDEXED', update_time = #{updateTime}, version = version + 1
+        WHERE revision_id = #{revisionId} AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
+</mapper>
