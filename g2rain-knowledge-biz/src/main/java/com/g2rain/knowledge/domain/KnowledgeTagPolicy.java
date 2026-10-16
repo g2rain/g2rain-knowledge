@@ -1,8 +1,8 @@
 package com.g2rain.knowledge.domain;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.g2rain.common.exception.BusinessException;
+import com.g2rain.common.json.JsonCodec;
+import com.g2rain.common.json.JsonCodecFactory;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import org.springframework.stereotype.Component;
 
@@ -17,14 +17,7 @@ import java.util.regex.Pattern;
 @Component
 public class KnowledgeTagPolicy {
     private static final Pattern TAG_CODE = Pattern.compile("[a-z0-9_]{1,64}");
-    private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {
-    };
-
-    private final ObjectMapper objectMapper;
-
-    public KnowledgeTagPolicy(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+    private static final JsonCodec JSON = JsonCodecFactory.instance();
 
     public List<String> normalize(List<String> codes) {
         if (Objects.isNull(codes) || codes.isEmpty()) {
@@ -53,9 +46,9 @@ public class KnowledgeTagPolicy {
             return List.of();
         }
         try {
-            List<String> parsed = objectMapper.readValue(tagsJson, STRING_LIST);
+            List<String> parsed = JSON.str2obj(tagsJson, List.class, String.class);
             return Objects.requireNonNullElse(parsed, List.of());
-        } catch (Exception exception) {
+        } catch (RuntimeException exception) {
             throw new BusinessException(KnowledgeErrorCode.INVALID_TAGS_JSON);
         }
     }

@@ -1,6 +1,5 @@
 package com.g2rain.knowledge.domain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.g2rain.common.exception.BusinessException;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import org.junit.jupiter.api.Test;
@@ -11,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class KnowledgeTagPolicyTest {
-    private final KnowledgeTagPolicy policy = new KnowledgeTagPolicy(new ObjectMapper());
+    private final KnowledgeTagPolicy policy = new KnowledgeTagPolicy();
 
     @Test
     void preservesFirstOccurrenceAndBuildsSafeJsonSnapshot() {
