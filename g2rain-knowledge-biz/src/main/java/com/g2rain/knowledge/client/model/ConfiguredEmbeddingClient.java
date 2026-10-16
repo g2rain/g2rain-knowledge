@@ -1,5 +1,6 @@
 package com.g2rain.knowledge.client.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.g2rain.common.exception.BusinessException;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import org.springframework.stereotype.Component;
@@ -11,8 +12,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Calls the configured embedding URL. Only server-configured model
- * and dimension are used; vendor credentials stay inside Nexus.
+ * Calls the configured embedding URL. Only server-configured model,
+ * dimension, and optional encoding format are used; vendor credentials stay inside Nexus.
  */
 @Component
 public class ConfiguredEmbeddingClient implements EmbeddingClient {
@@ -32,7 +33,7 @@ public class ConfiguredEmbeddingClient implements EmbeddingClient {
                 .create(properties.getConnectTimeout(), properties.getReadTimeout())
                 .post()
                 .uri(properties.getUrl())
-                .body(new EmbeddingRequest(properties.getModelName(), texts, properties.getDimension()))
+                .body(embeddingRequest(properties.getModelName(), texts, properties.getDimension(), properties.getEncodingFormat()))
                 .retrieve()
                 .body(EmbeddingResponse.class);
             return normalize(response, texts.size(), properties.getDimension());
@@ -67,7 +68,12 @@ public class ConfiguredEmbeddingClient implements EmbeddingClient {
         return Objects.isNull(value) || value.isBlank();
     }
 
-    record EmbeddingRequest(String model, List<String> input, Integer dimensions) {
+    static EmbeddingRequest embeddingRequest(String model, List<String> input, int dimensions, String encodingFormat) {
+        return new EmbeddingRequest(model, input, dimensions, isBlank(encodingFormat) ? null : encodingFormat);
+    }
+
+    record EmbeddingRequest(String model, List<String> input, Integer dimensions,
+                            @JsonInclude(JsonInclude.Include.NON_NULL) String encodingFormat) {
     }
 
     record EmbeddingResponse(List<EmbeddingData> data) {

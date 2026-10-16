@@ -10,6 +10,7 @@ import com.g2rain.knowledge.client.milvus.MilvusProperties;
 import com.g2rain.knowledge.client.milvus.MilvusSearchCandidate;
 import com.g2rain.knowledge.client.model.EmbeddingClient;
 import com.g2rain.knowledge.client.model.KnowledgeRerankClient;
+import com.g2rain.knowledge.client.model.KnowledgeRerankProperties;
 import com.g2rain.knowledge.client.model.RerankScore;
 import com.g2rain.knowledge.client.retrieve.KnowledgeRetrieveProperties;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
@@ -69,6 +70,7 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
     @Resource private KnowledgeStorageClient knowledgeStorageClient;
     @Resource private EmbeddingClient embeddingClient;
     @Resource private KnowledgeRerankClient knowledgeRerankClient;
+    @Resource private KnowledgeRerankProperties rerankProperties;
     @Resource private MilvusKnowledgeClient milvusKnowledgeClient;
     @Resource private MilvusProperties milvusProperties;
     @Resource private KnowledgeRetrieveProperties retrieveProperties;
@@ -107,6 +109,9 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
     private List<KnowledgeEvidenceVo> rerank(String query, List<KnowledgeEvidenceVo> evidence, int topK) {
         if (evidence.isEmpty()) {
             return List.of();
+        }
+        if (!rerankProperties.isEnabled()) {
+            return evidence.stream().limit(topK).toList();
         }
         List<RerankScore> scores = dependency("rerank",
             () -> knowledgeRerankClient.rerank(query, evidence.stream().map(KnowledgeEvidenceVo::getContent).toList(), topK));

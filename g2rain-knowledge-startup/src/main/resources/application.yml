@@ -38,6 +38,7 @@ g2rain:
       read-timeout: ${DOCLING_READ_TIMEOUT:90s}
     embedding:
       dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:4096}
+      encoding-format: ${KNOWLEDGE_EMBEDDING_ENCODING_FORMAT:}
       connect-timeout: ${MODEL_NEXUS_CONNECT_TIMEOUT:5s}
       read-timeout: ${MODEL_NEXUS_READ_TIMEOUT:30s}
     milvus:
@@ -52,6 +53,7 @@ g2rain:
       connect-timeout: ${KNOWLEDGE_ANSWER_CONNECT_TIMEOUT:5s}
       read-timeout: ${KNOWLEDGE_ANSWER_READ_TIMEOUT:60s}
     rerank:
+      enabled: ${KNOWLEDGE_RERANK_ENABLED:true}
       connect-timeout: ${KNOWLEDGE_RERANK_CONNECT_TIMEOUT:5s}
       read-timeout: ${KNOWLEDGE_RERANK_READ_TIMEOUT:30s}
 

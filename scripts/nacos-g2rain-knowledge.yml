@@ -30,9 +30,11 @@ g2rain:
       url: http://g2rain-model-nexus:8080/v1/embeddings
       model-name:
       dimension: 4096
+      encoding-format: float
     answer:
       url: http://g2rain-model-nexus:8080/v1/chat/completions
       model-name:
     rerank:
+      enabled: true
       url: http://g2rain-model-nexus:8080/v1/rerank
       model-name:

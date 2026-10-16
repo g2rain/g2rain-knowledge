@@ -17,7 +17,8 @@
 | `RETRIEVE_TOP_K_MAX` | **`KNOWLEDGE_RETRIEVE_MAX_TOP_K`** | 最大 topK | — |
 | （默认 topK） | `KNOWLEDGE_RETRIEVE_DEFAULT_TOP_K` | 默认 topK | — |
 | `RETRIEVE_TOTAL_TIMEOUT_MS` | **`KNOWLEDGE_RETRIEVE_TOTAL_TIMEOUT_MS`** | 检索端到端预算 | 超时→依赖不可用/503 |
-| `RERANK_*` | Nacos `g2rain.knowledge.rerank.url` / `model-name` | 重排完整地址，例如 `http://g2rain-model-nexus:8080/v1/rerank` | 仅受信候选；透传 PrincipalHeaders |
+| `KNOWLEDGE_RERANK_ENABLED` | Nacos `g2rain.knowledge.rerank.enabled`（默认 true） | 是否调用重排序接口 | false 时保留 MySQL 复核后的原顺序并截取 topK，不调用模型 |
+| `RERANK_*` | Nacos `g2rain.knowledge.rerank.url` / `model-name` | 重排完整地址，例如 `http://g2rain-model-nexus:8080/v1/rerank` | 仅 enabled 时调用；故障仍返回 503，不降级为无证据 |
 | Answer | Nacos `g2rain.knowledge.answer.url` / `model-name` | 问答完整地址，例如 `http://g2rain-model-nexus:8080/v1/chat/completions` | 客户端不得指定模型 |
 
 配置前缀为 `g2rain.knowledge.*`。生产环境缺少关键依赖、Secret 或持久化挂载时应快速失败。
