@@ -48,6 +48,7 @@ public class KnowledgeReleaseController implements KnowledgeReleaseApi {
     }
 
     @PostMapping("/save")
+    @LoginGuard
     @Operation(summary = "新增或更新知识发布选择表信息", description = "新增或更新知识发布选择表基础信息")
     public Result<Long> save(@RequestBody KnowledgeReleaseDto dto) {
         return Result.success(knowledgeReleaseService.save(dto));
@@ -68,7 +69,8 @@ public class KnowledgeReleaseController implements KnowledgeReleaseApi {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "删除知识发布选择表记录", description = "根据主键删除知识发布选择表记录")
+    @LoginGuard
+    @Operation(summary = "删除知识发布选择表记录", description = "仅允许删除未发布且无活动版本的发布选择")
     public Result<Integer> delete(@Parameter(description = "知识发布选择表标识") @PathVariable Long id) {
         return Result.success(knowledgeReleaseService.delete(id));
     }

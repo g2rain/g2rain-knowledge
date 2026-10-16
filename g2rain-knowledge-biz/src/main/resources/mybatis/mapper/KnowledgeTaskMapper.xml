@@ -489,20 +489,20 @@
     <update id="claim">
         UPDATE knowledge_task SET task_status = 'RUNNING', lease_owner = #{workerId},
         lease_expire_time = #{leaseExpireTime}, started_time = #{now}, update_time = #{now}, version = version + 1
-        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'PENDING'
+        WHERE id = #{taskId} AND organ_id = #{organId, jdbcType=BIGINT} AND version = #{expectedVersion} AND task_status = 'PENDING'
         AND available_time &lt;= #{now} AND (delete_flag = 0 OR delete_flag IS NULL)
     </update>
 
     <update id="complete">
         UPDATE knowledge_task SET task_status = 'SUCCESS', finished_time = #{now}, update_time = #{now}, version = version + 1
-        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'RUNNING'
+        WHERE id = #{taskId} AND organ_id = #{organId, jdbcType=BIGINT} AND version = #{expectedVersion} AND task_status = 'RUNNING'
         AND lease_owner = #{workerId} AND (delete_flag = 0 OR delete_flag IS NULL)
     </update>
 
     <update id="fail">
         UPDATE knowledge_task SET task_status = 'FAILED', error_code = #{errorCode}, error_summary = #{errorSummary},
         finished_time = #{now}, update_time = #{now}, version = version + 1
-        WHERE id = #{taskId} AND version = #{expectedVersion} AND task_status = 'RUNNING'
+        WHERE id = #{taskId} AND organ_id = #{organId, jdbcType=BIGINT} AND version = #{expectedVersion} AND task_status = 'RUNNING'
         AND lease_owner = #{workerId} AND (delete_flag = 0 OR delete_flag IS NULL)
     </update>
     <update id="retryFailed">

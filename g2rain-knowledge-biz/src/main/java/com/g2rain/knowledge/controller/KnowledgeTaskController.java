@@ -51,6 +51,7 @@ public class KnowledgeTaskController implements KnowledgeTaskApi {
     }
 
     @PostMapping("/save")
+    @LoginGuard
     @Operation(summary = "新增或更新知识解析与索引处理任务表信息", description = "新增或更新知识解析与索引处理任务表基础信息")
     public Result<Long> save(@RequestBody KnowledgeTaskDto dto) {
         return Result.success(knowledgeTaskService.save(dto));

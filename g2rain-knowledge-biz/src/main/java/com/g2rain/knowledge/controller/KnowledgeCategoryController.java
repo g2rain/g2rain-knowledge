@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import com.g2rain.web.interceptors.annotations.LoginGuard;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -44,6 +45,7 @@ public class KnowledgeCategoryController implements KnowledgeCategoryApi {
     }
 
     @PostMapping("/save")
+    @LoginGuard
     @Operation(summary = "新增或更新知识分类表信息", description = "新增或更新知识分类表基础信息")
     public Result<Long> save(@RequestBody KnowledgeCategoryDto dto) {
         return Result.success(knowledgeCategoryService.save(dto));

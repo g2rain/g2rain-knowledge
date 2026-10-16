@@ -12,6 +12,7 @@ import com.g2rain.knowledge.dao.KnowledgeChunkDao;
 import com.g2rain.knowledge.dao.po.KnowledgeChunkPo;
 import com.g2rain.knowledge.dto.KnowledgeChunkDto;
 import com.g2rain.knowledge.dto.KnowledgeChunkSelectDto;
+import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeChunkService;
 import com.g2rain.knowledge.vo.KnowledgeChunkVo;
 import com.g2rain.mybatis.pagination.PageContext;
@@ -36,6 +37,8 @@ public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
 
     @Resource(name = "knowledgeChunkDao")
     private KnowledgeChunkDao knowledgeChunkDao;
+    @Resource
+    private KnowledgeAccessService knowledgeAccessService;
 
     private IdGenerator idGenerator;
 
@@ -67,30 +70,31 @@ public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
 
     @Override
     public Long save(KnowledgeChunkDto dto) {
-        Validations.validateSave(dto);
-
-        // 转换 DTO 为 PO
-        KnowledgeChunkPo entity = KnowledgeChunkConverter.INSTANCE.dto2po(dto);
-
-        // 判断是新增还是更新
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
-            // 新增：使用IdGenerator生成主键
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
+        if (creating) {
+            dto.setOrganId(organId);
+            Validations.validateSave(dto);
+            KnowledgeChunkPo entity = KnowledgeChunkConverter.INSTANCE.dto2po(dto);
             entity.setId(idGenerator.generateId());
+            entity.setOrganId(organId);
             LocalDateTime now = Moments.now();
             entity.setUpdateTime(now);
             entity.setCreateTime(now);
-            int success = knowledgeChunkDao.insert(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeChunkPo existing = knowledgeChunkDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            // 更新：直接更新
-            entity.setUpdateTime(Moments.now());
-            int success = knowledgeChunkDao.update(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+            Asserts.greaterThan(knowledgeChunkDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
+            return entity.getId();
         }
-
+        KnowledgeChunkPo existing = knowledgeChunkDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        Validations.validateSave(dto);
+        KnowledgeChunkPo entity = KnowledgeChunkConverter.INSTANCE.dto2po(dto);
+        entity.setId(existing.getId());
+        entity.setOrganId(existing.getOrganId());
+        entity.setCreateTime(existing.getCreateTime());
+        entity.setUpdateTime(Moments.now());
+        Asserts.greaterThan(knowledgeChunkDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
 
@@ -98,6 +102,7 @@ public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
     public int delete(Long id) {
         KnowledgeChunkPo existing = knowledgeChunkDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeChunkDao.delete(id);
     }
 }

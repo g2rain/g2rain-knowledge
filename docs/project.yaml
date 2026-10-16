@@ -98,4 +98,4 @@ verification:
 documentation:
   entry: docs/index.md
   agentEntry: AGENTS.md
-  activeRequirement: docs/requirements/RQ-003-knowledge-domain-rules.md
+  activeRequirement: docs/requirements/RQ-005-knowledge-save-contract-upgrade.md

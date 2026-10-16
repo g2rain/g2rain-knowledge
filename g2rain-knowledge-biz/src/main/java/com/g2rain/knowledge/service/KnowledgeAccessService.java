@@ -8,5 +8,10 @@ public interface KnowledgeAccessService {
 
     Long currentUserId();
 
+    /**
+     * Requires a non-null user id from the trusted principal (for createUserId etc.).
+     */
+    Long requireUserId();
+
     void assertSameOrgan(Long recordOrganId);
 }

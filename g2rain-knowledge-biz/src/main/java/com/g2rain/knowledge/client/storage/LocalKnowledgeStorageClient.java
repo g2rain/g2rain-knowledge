@@ -94,10 +94,13 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
         Path root = requireRoot();
         Path target = root.resolve(relativePath).normalize();
         assertWithinRoot(root, target);
+        if (!Files.isRegularFile(target)) {
+            throw new BusinessException(KnowledgeErrorCode.SOURCE_FILE_MISSING);
+        }
         try {
             return Files.newInputStream(target, StandardOpenOption.READ);
         } catch (IOException exception) {
-            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.SOURCE_FILE_MISSING);
         }
     }
 

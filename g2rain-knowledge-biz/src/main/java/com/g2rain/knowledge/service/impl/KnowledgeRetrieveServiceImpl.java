@@ -26,6 +26,7 @@ import com.g2rain.knowledge.domain.ContentHashes;
 import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
 import com.g2rain.knowledge.dto.KnowledgeRetrieveDto;
 import com.g2rain.knowledge.dto.KnowledgeTagSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
@@ -136,7 +137,8 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
             return java.util.Optional.empty();
         }
         KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
-        if (item == null || !Objects.equals(item.getOrganId(), organId) || !"ACTIVE".equals(item.getStatus())) {
+        if (item == null || !Objects.equals(item.getOrganId(), organId)
+            || !KnowledgeEnablementStatus.ACTIVE.name().equals(item.getStatus())) {
             return java.util.Optional.empty();
         }
 

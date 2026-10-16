@@ -75,21 +75,31 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
 
     @Override
     public Long save(KnowledgeTaskDto dto) {
-        Validations.validateSave(dto);
-        KnowledgeTaskPo entity = KnowledgeTaskConverter.INSTANCE.dto2po(dto);
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
+        if (creating) {
+            dto.setOrganId(organId);
+            Validations.validateSave(dto);
+            KnowledgeTaskPo entity = KnowledgeTaskConverter.INSTANCE.dto2po(dto);
             entity.setId(idGenerator.generateId());
+            entity.setOrganId(organId);
             LocalDateTime now = Moments.now();
             entity.setUpdateTime(now);
             entity.setCreateTime(now);
             Asserts.greaterThan(knowledgeTaskDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeTaskPo existing = knowledgeTaskDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            entity.setUpdateTime(Moments.now());
-            Asserts.greaterThan(knowledgeTaskDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+            return entity.getId();
         }
+        KnowledgeTaskPo existing = knowledgeTaskDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        Validations.validateSave(dto);
+        KnowledgeTaskPo entity = KnowledgeTaskConverter.INSTANCE.dto2po(dto);
+        entity.setId(existing.getId());
+        entity.setOrganId(existing.getOrganId());
+        entity.setCreateTime(existing.getCreateTime());
+        entity.setUpdateTime(Moments.now());
+        Asserts.greaterThan(knowledgeTaskDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
 
@@ -97,6 +107,7 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
     public int delete(Long id) {
         KnowledgeTaskPo existing = knowledgeTaskDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeTaskDao.delete(id);
     }
 

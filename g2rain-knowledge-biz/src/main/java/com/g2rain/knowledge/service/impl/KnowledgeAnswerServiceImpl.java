@@ -1,10 +1,12 @@
 package com.g2rain.knowledge.service.impl;
 
+import com.g2rain.knowledge.client.KnowledgeDependencyException;
 import com.g2rain.knowledge.client.model.KnowledgeChatClient;
 import com.g2rain.knowledge.dao.KnowledgeAnswerTemplateDao;
 import com.g2rain.knowledge.dao.po.KnowledgeAnswerTemplatePo;
 import com.g2rain.knowledge.dto.KnowledgeAnswerDto;
 import com.g2rain.knowledge.dto.KnowledgeAnswerTemplateSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.common.exception.BusinessException;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
@@ -17,11 +19,17 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class KnowledgeAnswerServiceImpl implements KnowledgeAnswerService {
     private static final String NO_EVIDENCE_ANSWER = "未找到能够确认该问题的已发布知识。";
+    private static final Set<String> CHAT_DEPENDENCY_CODES = Set.of(
+        KnowledgeErrorCode.ANSWER_NOT_CONFIGURED.code(),
+        KnowledgeErrorCode.ANSWER_OPERATION_FAILED.code(),
+        KnowledgeErrorCode.ANSWER_INVALID_RESPONSE.code()
+    );
 
     @Resource private KnowledgeRetrieveService knowledgeRetrieveService;
     @Resource private KnowledgeChatClient knowledgeChatClient;
@@ -41,15 +49,35 @@ public class KnowledgeAnswerServiceImpl implements KnowledgeAnswerService {
             return result;
         }
         KnowledgeAnswerTemplatePo template = template(dto.getTemplateCode());
-        result.setAnswer(knowledgeChatClient.complete(template.getSystemPrompt(), prompt(dto.getQuery().trim(), retrieved)));
+        result.setAnswer(complete(template.getSystemPrompt(), prompt(dto.getQuery().trim(), retrieved)));
         return result;
+    }
+
+    private String complete(String systemPrompt, String userPrompt) {
+        try {
+            return knowledgeChatClient.complete(systemPrompt, userPrompt);
+        } catch (BusinessException exception) {
+            if (!CHAT_DEPENDENCY_CODES.contains(exception.getErrorCode())) {
+                throw exception;
+            }
+            throw new KnowledgeDependencyException("chat", chatError(exception.getErrorCode()), exception);
+        }
+    }
+
+    private static KnowledgeErrorCode chatError(String code) {
+        for (KnowledgeErrorCode value : KnowledgeErrorCode.values()) {
+            if (value.code().equals(code)) {
+                return value;
+            }
+        }
+        return KnowledgeErrorCode.ANSWER_OPERATION_FAILED;
     }
 
     private KnowledgeAnswerTemplatePo template(String templateCode) {
         KnowledgeAnswerTemplateSelectDto query = new KnowledgeAnswerTemplateSelectDto();
         query.setOrganId(knowledgeAccessService.requireOrganId());
         query.setTemplateCode(templateCode == null || templateCode.isBlank() ? "DEFAULT" : templateCode.trim());
-        query.setStatus("ACTIVE");
+        query.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
         List<KnowledgeAnswerTemplatePo> templates = knowledgeAnswerTemplateDao.selectList(query);
         if (templates.size() != 1 || templates.getFirst().getSystemPrompt() == null || templates.getFirst().getSystemPrompt().isBlank()) {
             throw new BusinessException(KnowledgeErrorCode.ANSWER_TEMPLATE_NOT_AVAILABLE);

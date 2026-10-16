@@ -27,6 +27,12 @@ import com.g2rain.common.json.AdminCompanyCondition;
 public class KnowledgeRevisionVo extends BaseVo {
 
     /**
+     * 乐观锁版本，供草稿 save / replace-file 使用
+     */
+    @Schema(description = "乐观锁版本，供草稿 save / replace-file 的 expectedVersion 使用")
+    private Integer version;
+
+    /**
      * 机构标识
      */
     @Schema(description = "机构标识")

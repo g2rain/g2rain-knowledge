@@ -1,6 +1,8 @@
 package com.g2rain.knowledge.task;
 
 import com.g2rain.common.utils.Moments;
+import com.g2rain.common.web.PrincipalContext;
+import com.g2rain.common.web.PrincipalContextHolder;
 import com.g2rain.knowledge.dao.KnowledgeTaskDao;
 import com.g2rain.knowledge.dao.po.KnowledgeTaskPo;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
@@ -18,6 +20,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.UUID;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -40,14 +43,32 @@ public class KnowledgeTaskAsyncExecutor {
     @Async("knowledgeTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void execute(KnowledgeTaskRequestedEvent event) {
-        KnowledgeTaskPo task = knowledgeTaskDao.selectById(event.taskId());
-        if (task == null || knowledgeTaskDao.claim(task.getId(), task.getVersion(), workerId,
+        KnowledgeTaskPo persisted = knowledgeTaskDao.selectByIdWithoutIsolation(event.taskId());
+        if (persisted == null || persisted.getOrganId() == null) {
+            return;
+        }
+        PrincipalContext organScope = PrincipalContext.of();
+        organScope.setOrganId(persisted.getOrganId());
+        PrincipalContextHolder.runWith(organScope, () -> executeInOrgan(persisted.getOrganId(), event.taskId()));
+    }
+
+    private void executeInOrgan(Long organId, Long taskId) {
+        KnowledgeTaskPo task = knowledgeTaskDao.selectById(taskId);
+        if (task == null || !Objects.equals(organId, task.getOrganId())
+            || !Objects.equals(organId, PrincipalContextHolder.getOrganId())) {
+            return;
+        }
+        if (knowledgeTaskDao.claim(organId, task.getId(), task.getVersion(), workerId,
             Moments.now().plus(Duration.ofMinutes(5)), Moments.now()) != 1) {
             return;
         }
-        if (!"PROCESS".equals(task.getTaskType())) return;
+        if (!"PROCESS".equals(task.getTaskType())) {
+            return;
+        }
         KnowledgeRevisionPo revision = knowledgeRevisionDao.selectById(task.getRevisionId());
-        if (revision == null) return;
+        if (revision == null || !Objects.equals(organId, revision.getOrganId())) {
+            return;
+        }
         try {
             String content;
             if ("FAQ".equals(revision.getSourceType())) {
@@ -62,10 +83,10 @@ public class KnowledgeTaskAsyncExecutor {
             knowledgeProcessPersistenceService.saveParsed(revision, path, chunks(content));
             knowledgeIndexService.index(revision.getId());
             knowledgeProcessPersistenceService.complete(revision.getId());
-            knowledgeTaskDao.complete(task.getId(), workerId, task.getVersion() + 1, Moments.now());
+            knowledgeTaskDao.complete(organId, task.getId(), workerId, task.getVersion() + 1, Moments.now());
         } catch (Exception exception) {
             knowledgeProcessPersistenceService.fail(task.getRevisionId());
-            knowledgeTaskDao.fail(task.getId(), workerId, task.getVersion() + 1, "PROCESS_PARSE_FAILED", "文档解析处理失败", Moments.now());
+            knowledgeTaskDao.fail(organId, task.getId(), workerId, task.getVersion() + 1, "PROCESS_PARSE_FAILED", "文档解析处理失败", Moments.now());
         }
     }
 

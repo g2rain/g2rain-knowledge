@@ -4,6 +4,7 @@ import com.g2rain.common.model.PageData;
 import com.g2rain.common.model.PageSelectListDto;
 import com.g2rain.knowledge.dto.KnowledgeRevisionDto;
 import com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto;
+import com.g2rain.knowledge.service.source.KnowledgeSourceDownload;
 import com.g2rain.knowledge.vo.KnowledgeRevisionVo;
 
 import java.util.List;
@@ -39,6 +40,11 @@ public interface KnowledgeRevisionService {
      * @return 操作结果（影响行数）
      */
     Long save(KnowledgeRevisionDto dto);
+
+    /**
+     * Opens a FILE revision source for authenticated download. Caller must close the stream.
+     */
+    KnowledgeSourceDownload downloadSource(Long revisionId);
 
     /**
      * 根据 ID 删除数据

@@ -1,5 +1,6 @@
 package com.g2rain.knowledge.service.impl;
 
+import com.g2rain.common.exception.BusinessException;
 import com.g2rain.common.exception.SystemErrorCode;
 import com.g2rain.common.id.IdGenerator;
 import com.g2rain.common.model.PageData;
@@ -9,10 +10,16 @@ import com.g2rain.common.utils.Moments;
 import com.g2rain.common.validation.Validations;
 import com.g2rain.knowledge.converter.KnowledgeItemConverter;
 import com.g2rain.knowledge.dao.KnowledgeItemDao;
+import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
 import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dto.KnowledgeItemDto;
 import com.g2rain.knowledge.dto.KnowledgeItemSelectDto;
+import com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
+import com.g2rain.knowledge.enums.KnowledgeErrorCode;
+import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeItemService;
+import com.g2rain.knowledge.service.KnowledgeSaveSupport;
 import com.g2rain.knowledge.vo.KnowledgeItemVo;
 import com.g2rain.mybatis.pagination.PageContext;
 import com.g2rain.mybatis.pagination.model.Page;
@@ -36,6 +43,12 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
 
     @Resource(name = "knowledgeItemDao")
     private KnowledgeItemDao knowledgeItemDao;
+    @Resource
+    private KnowledgeRevisionDao knowledgeRevisionDao;
+    @Resource
+    private KnowledgeAccessService knowledgeAccessService;
+    @Resource
+    private KnowledgeSaveSupport knowledgeSaveSupport;
 
     private IdGenerator idGenerator;
 
@@ -67,30 +80,53 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
 
     @Override
     public Long save(KnowledgeItemDto dto) {
-        Validations.validateSave(dto);
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
 
-        // 转换 DTO 为 PO
-        KnowledgeItemPo entity = KnowledgeItemConverter.INSTANCE.dto2po(dto);
-
-        // 判断是新增还是更新
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
-            // 新增：使用IdGenerator生成主键
+        if (creating) {
+            dto.setOrganId(organId);
+            dto.setCreateUserId(knowledgeAccessService.requireUserId());
+            if (isBlank(dto.getStatus())) {
+                dto.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
+            }
+            knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
+            Validations.validateSave(dto);
+            KnowledgeItemPo entity = KnowledgeItemConverter.INSTANCE.dto2po(dto);
             entity.setId(idGenerator.generateId());
+            entity.setOrganId(organId);
+            entity.setCreateUserId(dto.getCreateUserId());
             LocalDateTime now = Moments.now();
-            entity.setUpdateTime(now);
             entity.setCreateTime(now);
-            int success = knowledgeItemDao.insert(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeItemPo existing = knowledgeItemDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            // 更新：直接更新
-            entity.setUpdateTime(Moments.now());
-            int success = knowledgeItemDao.update(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+            entity.setUpdateTime(now);
+            Asserts.greaterThan(knowledgeItemDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
+            return entity.getId();
         }
 
+        KnowledgeItemPo existing = knowledgeItemDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        if (Objects.nonNull(dto.getKnowledgeType())
+            && !Objects.equals(dto.getKnowledgeType(), existing.getKnowledgeType())
+            && hasRevisions(existing.getId())) {
+            throw new BusinessException(KnowledgeErrorCode.KNOWLEDGE_TYPE_LOCKED);
+        }
+        knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
+        Validations.validateSave(dto);
+
+        KnowledgeItemPo entity = KnowledgeItemConverter.INSTANCE.dto2po(dto);
+        entity.setId(existing.getId());
+        entity.setOrganId(existing.getOrganId());
+        entity.setCreateUserId(existing.getCreateUserId());
+        entity.setCreateTime(existing.getCreateTime());
+        entity.setUpdateTime(Moments.now());
+        if (Objects.isNull(entity.getStatus())) {
+            entity.setStatus(existing.getStatus());
+        }
+        if (Objects.isNull(entity.getKnowledgeType())) {
+            entity.setKnowledgeType(existing.getKnowledgeType());
+        }
+        Asserts.greaterThan(knowledgeItemDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
 
@@ -98,6 +134,17 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
     public int delete(Long id) {
         KnowledgeItemPo existing = knowledgeItemDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeItemDao.delete(id);
+    }
+
+    private boolean hasRevisions(Long knowledgeId) {
+        KnowledgeRevisionSelectDto query = new KnowledgeRevisionSelectDto();
+        query.setKnowledgeId(knowledgeId);
+        return !knowledgeRevisionDao.selectList(query).isEmpty();
+    }
+
+    private static boolean isBlank(String value) {
+        return Objects.isNull(value) || value.isBlank();
     }
 }

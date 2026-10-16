@@ -36,9 +36,10 @@
 
 ## 已登记延期缺口（非 Profile 例外）
 
-- 发布：事务内先 `setSearchable` 再 MySQL CAS；无 offline/reconcile；无主题分布式锁。
+- 发布：事务内先 `setSearchable` 再 MySQL CAS；无 offline/reconcile；无主题分布式锁。通用删除仅允许未发布且无活动版本的 release，已发布记录不得借删除绕过下线。
 - 任务：`input_snapshot` / `lease_generation` / `cancel_requested` 列未接线；RUNNING 协作取消未实现。
-- 运营：主题/草稿/FAQ 经生成 `save`，不强制领域 DraftService HTTP；`replaceFile` 与 PENDING retry/cancel 已暴露专用 HTTP（经 `save` 的草稿无 DraftService 强校验，依赖 App 约定 + DB 唯一索引）。
+- 运营：主题/草稿/FAQ 经生成 `save` 已补受信组织、默认值与草稿白名单/`updateByVersion`（RQ-005）；`replaceFile` 与 PENDING retry/cancel 已暴露专用 HTTP。任务/切片/反馈 `/save` 仅补组织与 `@LoginGuard`，字段白名单未收紧，仍为已知残余风险。
+- 原文下载：`GET /knowledge_revision/{id}/source/download` 已按 RQ-006 提供附件流（审核不强制已下载）。
 
 ## 本地实现选择（非例外）
 

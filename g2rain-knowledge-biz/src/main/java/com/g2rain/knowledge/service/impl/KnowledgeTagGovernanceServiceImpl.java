@@ -5,6 +5,7 @@ import com.g2rain.knowledge.dao.KnowledgeTagDao;
 import com.g2rain.knowledge.dao.po.KnowledgeTagPo;
 import com.g2rain.knowledge.domain.KnowledgeTagPolicy;
 import com.g2rain.knowledge.dto.KnowledgeTagSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeTagGovernanceService;
@@ -19,7 +20,6 @@ import java.util.List;
  */
 @Service
 public class KnowledgeTagGovernanceServiceImpl implements KnowledgeTagGovernanceService {
-    private static final String ACTIVE = "ACTIVE";
 
     @Resource
     private KnowledgeTagDao knowledgeTagDao;
@@ -36,7 +36,7 @@ public class KnowledgeTagGovernanceServiceImpl implements KnowledgeTagGovernance
             KnowledgeTagSelectDto query = new KnowledgeTagSelectDto();
             query.setOrganId(organId);
             query.setTagCode(code);
-            query.setStatus(ACTIVE);
+            query.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
             List<KnowledgeTagPo> matches = knowledgeTagDao.selectList(query);
             if (matches.size() != 1) {
                 throw new BusinessException(KnowledgeErrorCode.TAG_NOT_AVAILABLE);
