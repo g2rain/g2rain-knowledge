@@ -10,6 +10,7 @@ import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.client.docling.DoclingClient;
 import com.g2rain.knowledge.client.docling.ParsedDocument;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
+import com.g2rain.knowledge.client.storage.SourceFileKind;
 import com.g2rain.knowledge.client.storage.SourceMetadata;
 import com.g2rain.knowledge.service.KnowledgeProcessPersistenceService;
 import com.g2rain.knowledge.service.KnowledgeIndexService;
@@ -70,15 +71,7 @@ public class KnowledgeTaskAsyncExecutor {
             return;
         }
         try {
-            String content;
-            if ("FAQ".equals(revision.getSourceType())) {
-                content = "# " + revision.getFaqQuestion() + "\n\n" + revision.getFaqAnswer();
-            } else {
-                try (InputStream source = knowledgeStorageClient.openSource(revision.getSourceStoragePath())) {
-                    ParsedDocument parsed = doclingClient.parse(source, new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()));
-                    content = parsed.markdown().isBlank() ? parsed.text() : parsed.markdown();
-                }
-            }
+            String content = loadContent(revision);
             String path = knowledgeStorageClient.writeParsed(revision.getOrganId(), revision.getKnowledgeId(), revision.getId(), task.getId(), content);
             knowledgeProcessPersistenceService.saveParsed(revision, path, chunks(content));
             knowledgeIndexService.index(revision.getId());
@@ -87,6 +80,24 @@ public class KnowledgeTaskAsyncExecutor {
         } catch (Exception exception) {
             knowledgeProcessPersistenceService.fail(task.getRevisionId());
             knowledgeTaskDao.fail(organId, task.getId(), workerId, task.getVersion() + 1, "PROCESS_PARSE_FAILED", "文档解析处理失败", Moments.now());
+        }
+    }
+
+    private String loadContent(KnowledgeRevisionPo revision) throws Exception {
+        if ("FAQ".equals(revision.getSourceType())) {
+            return "# " + revision.getFaqQuestion() + "\n\n" + revision.getFaqAnswer();
+        }
+        SourceFileKind kind = SourceFileKind.fromStored(revision.getSourceFileName(), revision.getSourceContentType());
+        if (kind == null) {
+            throw new IllegalStateException("unsupported source file kind");
+        }
+        try (InputStream source = knowledgeStorageClient.openSource(revision.getSourceStoragePath())) {
+            if (!kind.requiresDocling()) {
+                return new String(source.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            ParsedDocument parsed = doclingClient.parse(source,
+                new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()));
+            return parsed.markdown().isBlank() ? parsed.text() : parsed.markdown();
         }
     }
 

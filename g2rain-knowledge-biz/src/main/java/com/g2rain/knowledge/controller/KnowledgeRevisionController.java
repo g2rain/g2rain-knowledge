@@ -139,7 +139,7 @@ public class KnowledgeRevisionController implements KnowledgeRevisionApi {
     public Result<Void> replaceFile(
         @Parameter(description = "知识版本标识") @PathVariable Long revisionId,
         @Parameter(description = "乐观锁版本") @RequestParam Integer expectedVersion,
-        @Parameter(description = "源文件（PDF）") @RequestParam("file") MultipartFile file) throws IOException {
+        @Parameter(description = "源文件（PDF / Markdown / HTML）") @RequestParam("file") MultipartFile file) throws IOException {
         SourceMetadata metadata = new SourceMetadata(file.getOriginalFilename(), file.getContentType(), file.getSize());
         try (InputStream content = file.getInputStream()) {
             knowledgeDraftService.replaceFile(revisionId, expectedVersion, content, metadata);
