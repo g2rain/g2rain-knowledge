@@ -30,8 +30,10 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             List<JsonObject> data = entities.stream().map(this::json).toList();
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(data).build());
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
     }
 
@@ -41,8 +43,10 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             return client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
                 .outputFields(List.of("chunk_id")).build()).getQueryResults().size();
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
     }
 
@@ -54,7 +58,9 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             var rows = client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
                 .outputFields(List.of("chunk_id", "organ_id", "revision_id", "tags", "embedding_profile", "searchable")).build()).getQueryResults();
-            if (rows.size() != expected.size()) throw new BusinessException(KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE);
+            if (rows.size() != expected.size()) {
+                throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
+            }
             // SDK result maps are normalized here by field name; each expected entity must match all filter-critical fields.
             for (MilvusIndexEntity entity : expected) {
                 boolean matched = rows.stream().anyMatch(row -> String.valueOf(row.getEntity().get("chunk_id")).equals(String.valueOf(entity.chunkId()))
@@ -63,9 +69,15 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
                     && String.valueOf(row.getEntity().get("embedding_profile")).equals(entity.embeddingProfile())
                     && sameTags(row.getEntity().get("tags"), entity.tags())
                     && Boolean.FALSE.equals(row.getEntity().get("searchable")));
-                if (!matched) throw new BusinessException(KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE);
+                if (!matched) {
+                    throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
+                }
             }
-        } catch (RuntimeException exception) { throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED); }
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
+        }
     }
 
     private boolean sameTags(Object actual, List<String> expected) {
@@ -91,16 +103,20 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
                 return value;
             }).toList();
             if (changes.isEmpty()) {
-                throw new BusinessException(KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE);
+                throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(changes).build());
             var actual = client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
                 .outputFields(List.of("chunk_id", "searchable")).build()).getQueryResults();
             boolean confirmed = actual.size() == changes.size() && actual.stream()
                 .allMatch(row -> Boolean.parseBoolean(String.valueOf(row.getEntity().get("searchable"))) == searchable);
-            if (!confirmed) throw new BusinessException(KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE);
+            if (!confirmed) {
+                throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
+            }
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
     }
 
@@ -117,8 +133,10 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             return response.getSearchResults().getFirst().stream()
                 .map(result -> new MilvusSearchCandidate(Long.parseLong(String.valueOf(result.getEntity().get("chunk_id"))), result.getScore()))
                 .toList();
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
     }
 
@@ -137,21 +155,43 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             var schema = client().describeCollection(DescribeCollectionReq.builder().collectionName(collectionName).build()).getCollectionSchema();
             boolean key = schema.getFieldSchemaList().stream().anyMatch(field -> "chunk_id".equals(field.getName()) && field.getIsPrimaryKey());
             boolean vector = schema.getFieldSchemaList().stream().anyMatch(field -> "content_vector".equals(field.getName()) && field.getDimension() == dimension);
-            if (!key || !vector) throw new BusinessException(KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE);
+            if (!key || !vector) {
+                throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
+            }
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
     }
 
     private JsonObject json(MilvusIndexEntity entity) {
         JsonObject row = new JsonObject();
-        row.addProperty("chunk_id", entity.chunkId()); row.addProperty("organ_id", entity.organId());
-        row.addProperty("knowledge_id", entity.knowledgeId()); row.addProperty("revision_id", entity.revisionId());
-        row.addProperty("source_type", entity.sourceType()); row.addProperty("content", entity.content());
-        row.addProperty("title_path", entity.titlePath()); row.addProperty("page_start", entity.pageStart()); row.addProperty("page_end", entity.pageEnd());
-        row.addProperty("embedding_profile", entity.embeddingProfile()); row.addProperty("searchable", false);
-        JsonArray tags = new JsonArray(); entity.tags().forEach(tags::add); row.add("tags", tags);
-        JsonArray vector = new JsonArray(); for (float value : entity.vector()) vector.add(value); row.add("content_vector", vector);
+        row.addProperty("chunk_id", entity.chunkId());
+        row.addProperty("organ_id", entity.organId());
+        row.addProperty("knowledge_id", entity.knowledgeId());
+        row.addProperty("revision_id", entity.revisionId());
+        row.addProperty("source_type", entity.sourceType());
+        row.addProperty("content", entity.content());
+        if (entity.titlePath() != null) {
+            row.addProperty("title_path", entity.titlePath());
+        }
+        if (entity.pageStart() != null) {
+            row.addProperty("page_start", entity.pageStart());
+        }
+        if (entity.pageEnd() != null) {
+            row.addProperty("page_end", entity.pageEnd());
+        }
+        row.addProperty("embedding_profile", entity.embeddingProfile());
+        row.addProperty("searchable", false);
+        JsonArray tags = new JsonArray();
+        entity.tags().forEach(tags::add);
+        row.add("tags", tags);
+        JsonArray vector = new JsonArray();
+        for (float value : entity.vector()) {
+            vector.add(value);
+        }
+        row.add("content_vector", vector);
         return row;
     }
 }

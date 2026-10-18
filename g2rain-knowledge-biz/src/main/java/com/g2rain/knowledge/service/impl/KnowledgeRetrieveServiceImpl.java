@@ -52,6 +52,8 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
         KnowledgeErrorCode.EMBEDDING_NOT_CONFIGURED.code(),
         KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED.code(),
         KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE.code(),
+        KnowledgeErrorCode.MILVUS_OPERATION_FAILED.code(),
+        KnowledgeErrorCode.MILVUS_INVALID_RESPONSE.code(),
         KnowledgeErrorCode.RERANK_NOT_CONFIGURED.code(),
         KnowledgeErrorCode.RERANK_OPERATION_FAILED.code(),
         KnowledgeErrorCode.RERANK_INVALID_RESPONSE.code(),

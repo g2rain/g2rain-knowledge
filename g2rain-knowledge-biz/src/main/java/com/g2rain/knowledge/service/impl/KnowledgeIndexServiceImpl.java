@@ -6,6 +6,7 @@ import com.g2rain.knowledge.client.milvus.MilvusIndexEntity;
 import com.g2rain.knowledge.client.milvus.MilvusKnowledgeClient;
 import com.g2rain.knowledge.client.milvus.MilvusProperties;
 import com.g2rain.knowledge.client.model.EmbeddingClient;
+import com.g2rain.knowledge.client.model.EmbeddingProperties;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
 import com.g2rain.knowledge.dao.KnowledgeChunkDao;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
@@ -26,6 +27,7 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
     @Resource private KnowledgeChunkDao knowledgeChunkDao;
     @Resource private KnowledgeStorageClient knowledgeStorageClient;
     @Resource private EmbeddingClient embeddingClient;
+    @Resource private EmbeddingProperties embeddingProperties;
     @Resource private MilvusKnowledgeClient milvusKnowledgeClient;
     @Resource private MilvusProperties milvusProperties;
 
@@ -37,11 +39,12 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
         List<float[]> vectors = embeddingClient.embed(contents);
         milvusKnowledgeClient.validateSchema(milvusProperties.getCollectionName(), vectors.getFirst().length);
         List<String> tags = tags(revision.getTagsJson());
+        String embeddingProfile = embeddingProperties.getModelName() + "-" + embeddingProperties.getDimension();
         List<MilvusIndexEntity> entities = java.util.stream.IntStream.range(0, chunks.size()).mapToObj(i -> {
             KnowledgeChunkPo c = chunks.get(i);
             return new MilvusIndexEntity(c.getId(), revision.getOrganId(), revision.getKnowledgeId(), revisionId,
                 tags, revision.getSourceType(), contents.get(i), c.getTitlePath(), c.getPageStart(), c.getPageEnd(),
-                revision.getEmbeddingProfile(), vectors.get(i));
+                embeddingProfile, vectors.get(i));
         }).toList();
         milvusKnowledgeClient.upsertStaged(milvusProperties.getCollectionName(), entities);
         long indexedCount = milvusKnowledgeClient.countRevision(milvusProperties.getCollectionName(), revision.getOrganId(), revisionId);

@@ -37,6 +37,8 @@ public enum KnowledgeErrorCode implements ErrorCode {
     EMBEDDING_NOT_CONFIGURED("knowledge.50004", "向量模型服务未配置"),
     EMBEDDING_OPERATION_FAILED("knowledge.50203", "向量模型服务调用失败"),
     EMBEDDING_INVALID_RESPONSE("knowledge.50204", "向量模型服务返回了无效向量"),
+    MILVUS_OPERATION_FAILED("knowledge.50209", "向量库服务调用失败"),
+    MILVUS_INVALID_RESPONSE("knowledge.50210", "向量库服务返回了无效结果"),
     RELEASE_NOT_PUBLISHABLE("knowledge.40911", "当前知识版本不可发布"),
     RELEASE_TARGET_MISMATCH("knowledge.40912", "发布记录与知识版本不匹配"),
     RELEASE_VERSION_CONFLICT("knowledge.40913", "知识发布记录已被其他操作更新，请刷新后重试"),

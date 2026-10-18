@@ -38,7 +38,7 @@ public class ConfiguredEmbeddingClient implements EmbeddingClient {
                 .body(EmbeddingResponse.class);
             return normalize(response, texts.size(), properties.getDimension());
         } catch (RestClientException exception) {
-            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED, exception);
         }
     }
 
