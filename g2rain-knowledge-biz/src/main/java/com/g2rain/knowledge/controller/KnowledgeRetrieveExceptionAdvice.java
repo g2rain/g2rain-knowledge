@@ -16,10 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * Maps retrieve/answer dependency failures to HTTP 503 while keeping the common Result body.
  */
 @Slf4j
-@RestControllerAdvice(assignableTypes = {
-    KnowledgeRetrieveController.class,
-    KnowledgeAnswerController.class
-})
+@RestControllerAdvice(assignableTypes = KnowledgeRuntimeController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class KnowledgeRetrieveExceptionAdvice {
 

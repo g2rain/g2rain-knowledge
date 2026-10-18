@@ -86,7 +86,7 @@
 
 | 类/包 | 字段或方法 | 责任 |
 | --- | --- | --- |
-| `api.KnowledgeRetrieveApi` | `Result<KnowledgeRetrieveVo> retrieve(KnowledgeRetrieveRequest request)` | 唯一已明确的 Runtime 查询入口 `POST /knowledge/retrieve` |
+| `api.KnowledgeRuntimeApi` | `retrieve` / `answer` | Runtime 入口：`POST /knowledge/retrieve`、`POST /knowledge/answer` |
 | `request.KnowledgeRetrieveRequest` | `query`、`allTags`、`anyTags`、`topK` | 对应 `all_tags/any_tags/top_k`；不接受组织、collection、profile、revision、阈值、路径 |
 | `vo.KnowledgeRetrieveVo` | `answerable`、`traceId`、`reasonCode`、`sources` | NO_EVIDENCE 为正常成功业务结果 |
 | `vo.KnowledgeEvidenceVo` | `knowledgeId/revisionId/chunkId/content/title/section/page/version/citation/score` | ID 保持 common 的字符串序列化；业务 `version` 表示 revisionNo，不覆盖 BaseVo 的乐观锁字段，使用独立组合模型 |
@@ -125,7 +125,7 @@
 
 | 类 | 待开发方法 | 约束 |
 | --- | --- | --- |
-| `controller.KnowledgeRetrieveController` | `retrieve(KnowledgeRetrieveRequest)` | 实现 KnowledgeRetrieveApi，绑定/校验/包装，逻辑委托 RetrieveService |
+| `controller.KnowledgeRuntimeController` | `retrieve`、`answer` | 实现 KnowledgeRuntimeApi；检索委托 RetrieveService，问答委托 AnswerService |
 | 各领域 Controller | 主题、版本、任务、发布等各自领域动作 | 管理端优先复用对应领域的 Controller 接口；前端 App 负责组合调用，不新增聚合式 `KnowledgeManagementController` |
 | `controller.KnowledgeReleaseCommandController` | `publish`、`rollback`、`offline`、`reconcile` | 同步命令，返回明确的已提交结果和投影警告 |
 | `controller.KnowledgeTaskController` | 领域命令：`processRevision`、`retry`、`cancel`（以及生成 CRUD） | 不向前端开放领取、续租和标记成功 |
