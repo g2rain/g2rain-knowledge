@@ -158,7 +158,7 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         LocalDateTime now = Moments.now();
         KnowledgeReleasePo releaseUpdate = new KnowledgeReleasePo();
         releaseUpdate.setId(release.getId());
-        releaseUpdate.setVersion(dto.getExpectedReleaseVersion());
+        releaseUpdate.setVersion(release.getVersion());
         releaseUpdate.setActiveRevisionId(target.getId());
         releaseUpdate.setReleaseStatus("PUBLISHED");
         releaseUpdate.setPublishedUserId(knowledgeAccessService.currentUserId());
@@ -169,7 +169,7 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
             throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
         }
 
-        updateRevisionStatus(target, dto.getExpectedRevisionVersion(), KnowledgeRevisionStatus.PUBLISHED.name(), now);
+        updateRevisionStatus(target, target.getVersion(), KnowledgeRevisionStatus.PUBLISHED.name(), now);
         if (previousRevisionId != null && !previousRevisionId.equals(target.getId())) {
             KnowledgeRevisionPo previous = knowledgeRevisionDao.selectById(previousRevisionId);
             if (previous != null) {
@@ -196,9 +196,6 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         KnowledgeReleasePo release = knowledgeReleaseDao.selectById(dto.getReleaseId());
         if (release == null) throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, dto.getReleaseId());
         knowledgeAccessService.assertSameOrgan(release.getOrganId());
-        if (!Objects.equals(release.getVersion(), dto.getExpectedReleaseVersion())) {
-            throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
-        }
         return release;
     }
 
@@ -208,9 +205,6 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         knowledgeAccessService.assertSameOrgan(target.getOrganId());
         if (!Objects.equals(target.getKnowledgeId(), release.getKnowledgeId())) {
             throw new BusinessException(KnowledgeErrorCode.RELEASE_TARGET_MISMATCH);
-        }
-        if (!Objects.equals(target.getVersion(), dto.getExpectedRevisionVersion())) {
-            throw new BusinessException(KnowledgeErrorCode.REVISION_VERSION_CONFLICT);
         }
         boolean permitted = restoringDeprecated
             ? KnowledgeRevisionStatus.DEPRECATED.name().equals(target.getRevisionStatus())
