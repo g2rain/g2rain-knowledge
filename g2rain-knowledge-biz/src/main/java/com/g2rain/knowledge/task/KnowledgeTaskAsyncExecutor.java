@@ -15,12 +15,14 @@ import com.g2rain.knowledge.client.storage.SourceMetadata;
 import com.g2rain.knowledge.service.KnowledgeProcessPersistenceService;
 import com.g2rain.knowledge.service.KnowledgeIndexService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 import java.io.InputStream;
@@ -30,6 +32,7 @@ import java.util.HexFormat;
 import java.util.ArrayList;
 
 /** Claims a committed PROCESS task on a virtual thread; processing stages follow in this executor. */
+@Slf4j
 @Component
 public class KnowledgeTaskAsyncExecutor {
     private final String workerId = "knowledge-" + UUID.randomUUID();
@@ -44,8 +47,10 @@ public class KnowledgeTaskAsyncExecutor {
     @Async("knowledgeTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void execute(KnowledgeTaskRequestedEvent event) {
+        log.info("received KnowledgeTaskRequestedEvent: taskId={}, workerId={}", event.taskId(), workerId);
         KnowledgeTaskPo persisted = knowledgeTaskDao.selectByIdWithoutIsolation(event.taskId());
         if (persisted == null || persisted.getOrganId() == null) {
+            log.warn("skip task event: task missing or organId null, taskId={}", event.taskId());
             return;
         }
         PrincipalContext organScope = PrincipalContext.of();
@@ -57,27 +62,49 @@ public class KnowledgeTaskAsyncExecutor {
         KnowledgeTaskPo task = knowledgeTaskDao.selectById(taskId);
         if (task == null || !Objects.equals(organId, task.getOrganId())
             || !Objects.equals(organId, PrincipalContextHolder.getOrganId())) {
+            log.warn("skip task before claim: organ/task mismatch, taskId={}, organId={}, taskOrganId={}, principalOrganId={}, taskStatus={}",
+                taskId, organId,
+                task == null ? null : task.getOrganId(),
+                PrincipalContextHolder.getOrganId(),
+                task == null ? null : task.getTaskStatus());
             return;
         }
-        if (knowledgeTaskDao.claim(organId, task.getId(), task.getVersion(), workerId,
-            Moments.now().plus(Duration.ofMinutes(5)), Moments.now()) != 1) {
+        LocalDateTime now = Moments.now();
+        int claimed = knowledgeTaskDao.claim(organId, task.getId(), task.getVersion(), workerId,
+            now.plus(Duration.ofMinutes(5)), now);
+        if (claimed != 1) {
+            log.warn("claim failed, task stays PENDING: taskId={}, organId={}, version={}, taskStatus={}, availableTime={}, now={}, workerId={}",
+                task.getId(), organId, task.getVersion(), task.getTaskStatus(), task.getAvailableTime(), now, workerId);
             return;
         }
+        log.info("claim succeeded: taskId={}, revisionId={}, organId={}, workerId={}",
+            task.getId(), task.getRevisionId(), organId, workerId);
         if (!"PROCESS".equals(task.getTaskType())) {
+            log.warn("skip non-PROCESS task after claim: taskId={}, taskType={}", task.getId(), task.getTaskType());
             return;
         }
         KnowledgeRevisionPo revision = knowledgeRevisionDao.selectById(task.getRevisionId());
         if (revision == null || !Objects.equals(organId, revision.getOrganId())) {
+            log.warn("revision missing or organ mismatch after claim: taskId={}, revisionId={}, organId={}",
+                task.getId(), task.getRevisionId(), organId);
             return;
         }
         try {
+            log.info("PROCESS load content start: taskId={}, revisionId={}, sourceType={}",
+                task.getId(), revision.getId(), revision.getSourceType());
             String content = loadContent(revision);
+            log.info("PROCESS write parsed start: taskId={}, revisionId={}, contentLength={}",
+                task.getId(), revision.getId(), content == null ? 0 : content.length());
             String path = knowledgeStorageClient.writeParsed(revision.getOrganId(), revision.getKnowledgeId(), revision.getId(), task.getId(), content);
             knowledgeProcessPersistenceService.saveParsed(revision, path, chunks(content));
+            log.info("PROCESS index start: taskId={}, revisionId={}", task.getId(), revision.getId());
             knowledgeIndexService.index(revision.getId());
             knowledgeProcessPersistenceService.complete(revision.getId());
             knowledgeTaskDao.complete(organId, task.getId(), workerId, task.getVersion() + 1, Moments.now());
+            log.info("PROCESS completed: taskId={}, revisionId={}, workerId={}", task.getId(), revision.getId(), workerId);
         } catch (Exception exception) {
+            log.error("PROCESS failed: taskId={}, revisionId={}, workerId={}",
+                task.getId(), task.getRevisionId(), workerId, exception);
             knowledgeProcessPersistenceService.fail(task.getRevisionId());
             knowledgeTaskDao.fail(organId, task.getId(), workerId, task.getVersion() + 1, "PROCESS_PARSE_FAILED", "文档解析处理失败", Moments.now());
         }
@@ -95,6 +122,8 @@ public class KnowledgeTaskAsyncExecutor {
             if (!kind.requiresDocling()) {
                 return new String(source.readAllBytes(), StandardCharsets.UTF_8);
             }
+            log.info("PROCESS docling parse start: revisionId={}, fileName={}",
+                revision.getId(), revision.getSourceFileName());
             ParsedDocument parsed = doclingClient.parse(source,
                 new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()));
             return parsed.markdown().isBlank() ? parsed.text() : parsed.markdown();

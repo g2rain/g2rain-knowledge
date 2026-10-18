@@ -30,6 +30,7 @@ public enum KnowledgeErrorCode implements ErrorCode {
     TASK_NOT_RETRYABLE("knowledge.40908", "当前任务不可重试"),
     TASK_NOT_CANCELLABLE("knowledge.40909", "当前任务不可取消"),
     TASK_VERSION_CONFLICT("knowledge.40910", "任务已被其他操作更新，请刷新后重试"),
+    TASK_NOT_DISPATCHABLE("knowledge.40919", "当前任务不可推动执行"),
     DOCLING_NOT_CONFIGURED("knowledge.50003", "文档解析服务未配置"),
     DOCLING_OPERATION_FAILED("knowledge.50201", "文档解析服务调用失败"),
     DOCLING_INVALID_RESPONSE("knowledge.50202", "文档解析服务未返回可用内容"),

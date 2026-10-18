@@ -130,4 +130,8 @@ public interface KnowledgeTaskDao {
     int cancelPending(@Param("organId") Long organId, @Param("taskId") Long taskId,
                       @Param("expectedVersion") Integer expectedVersion, @Param("finishedTime") LocalDateTime finishedTime,
                       @Param("updateTime") LocalDateTime updateTime);
+
+    int armPending(@Param("organId") Long organId, @Param("taskId") Long taskId,
+                   @Param("expectedVersion") Integer expectedVersion, @Param("availableTime") LocalDateTime availableTime,
+                   @Param("updateTime") LocalDateTime updateTime);
 }

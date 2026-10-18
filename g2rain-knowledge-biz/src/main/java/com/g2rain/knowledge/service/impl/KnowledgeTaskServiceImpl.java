@@ -26,6 +26,7 @@ import com.g2rain.knowledge.vo.KnowledgeTaskVo;
 import com.g2rain.mybatis.pagination.PageContext;
 import com.g2rain.mybatis.pagination.model.Page;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ import java.util.Objects;
  *
  * @author G2rain Generator
  */
+@Slf4j
 @Service(value = "knowledgeTaskServiceImpl")
 public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
     @Resource(name = "knowledgeTaskDao")
@@ -129,7 +131,10 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
         query.setIdempotencyKey(key);
         List<KnowledgeTaskPo> existing = knowledgeTaskDao.selectList(query);
         if (!existing.isEmpty()) {
-            return existing.getFirst().getId();
+            KnowledgeTaskPo found = existing.getFirst();
+            log.info("processRevision reuse existing task: revisionId={}, taskId={}, taskStatus={}, idempotencyKey={}",
+                revisionId, found.getId(), found.getTaskStatus(), key);
+            return found.getId();
         }
         LocalDateTime now = Moments.now();
         KnowledgeRevisionPo update = new KnowledgeRevisionPo();
@@ -154,6 +159,8 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
         task.setUpdateTime(now);
         Asserts.greaterThan(knowledgeTaskDao.insert(task), 0, SystemErrorCode.CREATE_DATA_ERROR);
         applicationEventPublisher.publishEvent(new KnowledgeTaskRequestedEvent(task.getId()));
+        log.info("processRevision created PENDING task and published event: revisionId={}, taskId={}, organId={}, availableTime={}, idempotencyKey={}",
+            revisionId, task.getId(), task.getOrganId(), task.getAvailableTime(), key);
         return task.getId();
     }
 }

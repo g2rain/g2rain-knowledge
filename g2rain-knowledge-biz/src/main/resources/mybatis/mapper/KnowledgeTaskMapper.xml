@@ -536,4 +536,16 @@
           AND task_status = 'PENDING'
           AND (delete_flag = 0 OR delete_flag IS NULL)
     </update>
+
+    <update id="armPending">
+        UPDATE knowledge_task
+        SET available_time = #{availableTime, jdbcType=TIMESTAMP},
+            update_time = #{updateTime, jdbcType=TIMESTAMP},
+            version = version + 1
+        WHERE id = #{taskId, jdbcType=BIGINT}
+          AND organ_id = #{organId, jdbcType=BIGINT}
+          AND version = #{expectedVersion, jdbcType=INTEGER}
+          AND task_status = 'PENDING'
+          AND (delete_flag = 0 OR delete_flag IS NULL)
+    </update>
 </mapper>

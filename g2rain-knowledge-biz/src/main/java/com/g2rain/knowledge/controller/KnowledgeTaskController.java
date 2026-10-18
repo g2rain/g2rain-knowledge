@@ -5,6 +5,7 @@ import com.g2rain.common.model.PageSelectListDto;
 import com.g2rain.common.model.Result;
 import com.g2rain.knowledge.api.KnowledgeTaskApi;
 import com.g2rain.knowledge.dto.KnowledgeTaskCancelDto;
+import com.g2rain.knowledge.dto.KnowledgeTaskDispatchDto;
 import com.g2rain.knowledge.dto.KnowledgeTaskDto;
 import com.g2rain.knowledge.dto.KnowledgeTaskRetryDto;
 import com.g2rain.knowledge.dto.KnowledgeTaskSelectDto;
@@ -82,6 +83,14 @@ public class KnowledgeTaskController implements KnowledgeTaskApi {
     @Operation(summary = "取消未开始的处理任务", description = "仅 PENDING；RUNNING 协作取消本轮未实现")
     public Result<Void> cancel(@Valid @RequestBody KnowledgeTaskCancelDto dto) {
         knowledgeTaskCommandService.cancel(dto);
+        return Result.success();
+    }
+
+    @PostMapping("/dispatch")
+    @LoginGuard
+    @Operation(summary = "推动 PENDING 任务执行", description = "仅 PENDING；刷新可领取时间并重新发布处理事件")
+    public Result<Void> dispatch(@Valid @RequestBody KnowledgeTaskDispatchDto dto) {
+        knowledgeTaskCommandService.dispatch(dto);
         return Result.success();
     }
 }
