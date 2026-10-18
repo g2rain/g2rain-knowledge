@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import com.g2rain.web.interceptors.annotations.LoginGuard;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -44,6 +45,7 @@ public class KnowledgeChunkController implements KnowledgeChunkApi {
     }
 
     @PostMapping("/save")
+    @LoginGuard
     @Operation(summary = "新增或更新知识切片清单表信息", description = "新增或更新知识切片清单表基础信息")
     public Result<Long> save(@RequestBody KnowledgeChunkDto dto) {
         return Result.success(knowledgeChunkService.save(dto));

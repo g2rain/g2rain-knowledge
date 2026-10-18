@@ -11,8 +11,10 @@ import com.g2rain.common.validation.Validations;
 import com.g2rain.knowledge.converter.KnowledgeReleaseConverter;
 import com.g2rain.knowledge.client.milvus.MilvusKnowledgeClient;
 import com.g2rain.knowledge.client.milvus.MilvusProperties;
+import com.g2rain.knowledge.dao.KnowledgeItemDao;
 import com.g2rain.knowledge.dao.KnowledgeReleaseDao;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
+import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dao.po.KnowledgeReleasePo;
 import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.dto.KnowledgeReleaseDto;
@@ -51,6 +53,8 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
     @Resource
     private KnowledgeRevisionDao knowledgeRevisionDao;
     @Resource
+    private KnowledgeItemDao knowledgeItemDao;
+    @Resource
     private KnowledgeAccessService knowledgeAccessService;
     @Resource
     private MilvusKnowledgeClient milvusKnowledgeClient;
@@ -87,31 +91,48 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
 
     @Override
     public Long save(KnowledgeReleaseDto dto) {
-        Validations.validateSave(dto);
-
-        // 转换 DTO 为 PO
-        KnowledgeReleasePo entity = KnowledgeReleaseConverter.INSTANCE.dto2po(dto);
-
-        // 判断是新增还是更新
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
-            // 新增：使用IdGenerator生成主键
-            entity.setId(idGenerator.generateId());
-            LocalDateTime now = Moments.now();
-            entity.setUpdateTime(now);
-            entity.setCreateTime(now);
-            int success = knowledgeReleaseDao.insert(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeReleasePo existing = knowledgeReleaseDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            // 更新：直接更新
-            entity.setUpdateTime(Moments.now());
-            int success = knowledgeReleaseDao.update(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
+        if (!creating) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_SAVE_UPDATE_FORBIDDEN);
         }
 
+        KnowledgeItemPo item = requireItemForRelease(dto.getKnowledgeId(), organId);
+
+        dto.setOrganId(organId);
+        dto.setReleaseStatus("UNPUBLISHED");
+        dto.setActiveRevisionId(null);
+        dto.setPublishedUserId(null);
+        dto.setPublishedTime(null);
+        dto.setReleaseReason(null);
+        Validations.validateSave(dto);
+
+        KnowledgeReleasePo entity = KnowledgeReleaseConverter.INSTANCE.dto2po(dto);
+        entity.setId(idGenerator.generateId());
+        entity.setOrganId(organId);
+        entity.setKnowledgeId(item.getId());
+        entity.setReleaseStatus("UNPUBLISHED");
+        entity.setActiveRevisionId(null);
+        entity.setPublishedUserId(null);
+        entity.setPublishedTime(null);
+        entity.setReleaseReason(null);
+        LocalDateTime now = Moments.now();
+        entity.setCreateTime(now);
+        entity.setUpdateTime(now);
+        Asserts.greaterThan(knowledgeReleaseDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
         return entity.getId();
+    }
+
+    private KnowledgeItemPo requireItemForRelease(Long knowledgeId, Long organId) {
+        KnowledgeItemPo item = knowledgeItemDao.selectById(knowledgeId);
+        if (item == null) {
+            throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, knowledgeId);
+        }
+        if (!Objects.equals(item.getOrganId(), organId)) {
+            throw new BusinessException(SystemErrorCode.UNAUTHORIZED, "跨机构知识主题");
+        }
+        return item;
     }
 
     @Override
@@ -137,7 +158,7 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         LocalDateTime now = Moments.now();
         KnowledgeReleasePo releaseUpdate = new KnowledgeReleasePo();
         releaseUpdate.setId(release.getId());
-        releaseUpdate.setVersion(dto.getExpectedReleaseVersion());
+        releaseUpdate.setVersion(release.getVersion());
         releaseUpdate.setActiveRevisionId(target.getId());
         releaseUpdate.setReleaseStatus("PUBLISHED");
         releaseUpdate.setPublishedUserId(knowledgeAccessService.currentUserId());
@@ -148,7 +169,7 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
             throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
         }
 
-        updateRevisionStatus(target, dto.getExpectedRevisionVersion(), KnowledgeRevisionStatus.PUBLISHED.name(), now);
+        updateRevisionStatus(target, target.getVersion(), KnowledgeRevisionStatus.PUBLISHED.name(), now);
         if (previousRevisionId != null && !previousRevisionId.equals(target.getId())) {
             KnowledgeRevisionPo previous = knowledgeRevisionDao.selectById(previousRevisionId);
             if (previous != null) {
@@ -164,6 +185,10 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
     public int delete(Long id) {
         KnowledgeReleasePo existing = knowledgeReleaseDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        if (!"UNPUBLISHED".equals(existing.getReleaseStatus()) || Objects.nonNull(existing.getActiveRevisionId())) {
+            throw new BusinessException(KnowledgeErrorCode.RELEASE_DELETE_FORBIDDEN);
+        }
         return knowledgeReleaseDao.delete(id);
     }
 
@@ -171,9 +196,6 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         KnowledgeReleasePo release = knowledgeReleaseDao.selectById(dto.getReleaseId());
         if (release == null) throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, dto.getReleaseId());
         knowledgeAccessService.assertSameOrgan(release.getOrganId());
-        if (!Objects.equals(release.getVersion(), dto.getExpectedReleaseVersion())) {
-            throw new BusinessException(KnowledgeErrorCode.RELEASE_VERSION_CONFLICT);
-        }
         return release;
     }
 
@@ -183,9 +205,6 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         knowledgeAccessService.assertSameOrgan(target.getOrganId());
         if (!Objects.equals(target.getKnowledgeId(), release.getKnowledgeId())) {
             throw new BusinessException(KnowledgeErrorCode.RELEASE_TARGET_MISMATCH);
-        }
-        if (!Objects.equals(target.getVersion(), dto.getExpectedRevisionVersion())) {
-            throw new BusinessException(KnowledgeErrorCode.REVISION_VERSION_CONFLICT);
         }
         boolean permitted = restoringDeprecated
             ? KnowledgeRevisionStatus.DEPRECATED.name().equals(target.getRevisionStatus())

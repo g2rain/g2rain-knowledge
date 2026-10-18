@@ -77,6 +77,7 @@ plannedConfiguration:
   - MODEL_NEXUS_BASE_URL
   - KNOWLEDGE_EMBEDDING_MODEL
   - KNOWLEDGE_EMBEDDING_DIMENSION
+  - KNOWLEDGE_RERANK_ENABLED
   - KNOWLEDGE_RERANK_BASE_URL
   - KNOWLEDGE_RERANK_MODEL
   - KNOWLEDGE_ANSWER_BASE_URL
@@ -98,4 +99,4 @@ verification:
 documentation:
   entry: docs/index.md
   agentEntry: AGENTS.md
-  activeRequirement: docs/requirements/RQ-003-knowledge-domain-rules.md
+  activeRequirement: docs/requirements/RQ-005-knowledge-save-contract-upgrade.md

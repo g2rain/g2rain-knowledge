@@ -29,6 +29,15 @@ public class KnowledgeAccessServiceImpl implements KnowledgeAccessService {
     }
 
     @Override
+    public Long requireUserId() {
+        Long userId = currentUserId();
+        if (Objects.isNull(userId)) {
+            throw new BusinessException(SystemErrorCode.UNAUTHENTICATED, "缺少用户主体");
+        }
+        return userId;
+    }
+
+    @Override
     public void assertSameOrgan(Long recordOrganId) {
         if (!Objects.equals(requireOrganId(), recordOrganId)) {
             throw new BusinessException(SystemErrorCode.UNAUTHORIZED, "跨机构知识数据");

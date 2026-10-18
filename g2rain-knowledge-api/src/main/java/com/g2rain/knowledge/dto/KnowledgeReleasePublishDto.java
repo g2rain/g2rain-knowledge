@@ -10,6 +10,7 @@ import lombok.Setter;
 /**
  * Switches one knowledge topic to an already indexed revision.
  * The tenant and publisher are always resolved from the trusted request context.
+ * Concurrent updates still use DB-side version CAS; clients do not pass expected versions.
  */
 @Getter
 @Setter
@@ -22,14 +23,6 @@ public class KnowledgeReleasePublishDto extends BaseDto {
     @NotNull
     @Schema(description = "待发布知识版本标识", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long revisionId;
-
-    @NotNull
-    @Schema(description = "发布记录当前乐观锁版本", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Integer expectedReleaseVersion;
-
-    @NotNull
-    @Schema(description = "待发布版本当前乐观锁版本", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Integer expectedRevisionVersion;
 
     @Size(max = 512)
     @Schema(description = "发布原因", maxLength = 512)

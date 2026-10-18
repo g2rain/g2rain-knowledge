@@ -12,6 +12,7 @@ import com.g2rain.knowledge.dao.KnowledgeFeedbackDao;
 import com.g2rain.knowledge.dao.po.KnowledgeFeedbackPo;
 import com.g2rain.knowledge.dto.KnowledgeFeedbackDto;
 import com.g2rain.knowledge.dto.KnowledgeFeedbackSelectDto;
+import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeFeedbackService;
 import com.g2rain.knowledge.vo.KnowledgeFeedbackVo;
 import com.g2rain.mybatis.pagination.PageContext;
@@ -36,6 +37,8 @@ public class KnowledgeFeedbackServiceImpl implements KnowledgeFeedbackService {
 
     @Resource(name = "knowledgeFeedbackDao")
     private KnowledgeFeedbackDao knowledgeFeedbackDao;
+    @Resource
+    private KnowledgeAccessService knowledgeAccessService;
 
     private IdGenerator idGenerator;
 
@@ -67,30 +70,31 @@ public class KnowledgeFeedbackServiceImpl implements KnowledgeFeedbackService {
 
     @Override
     public Long save(KnowledgeFeedbackDto dto) {
-        Validations.validateSave(dto);
-
-        // 转换 DTO 为 PO
-        KnowledgeFeedbackPo entity = KnowledgeFeedbackConverter.INSTANCE.dto2po(dto);
-
-        // 判断是新增还是更新
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
-            // 新增：使用IdGenerator生成主键
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
+        if (creating) {
+            dto.setOrganId(organId);
+            Validations.validateSave(dto);
+            KnowledgeFeedbackPo entity = KnowledgeFeedbackConverter.INSTANCE.dto2po(dto);
             entity.setId(idGenerator.generateId());
+            entity.setOrganId(organId);
             LocalDateTime now = Moments.now();
             entity.setUpdateTime(now);
             entity.setCreateTime(now);
-            int success = knowledgeFeedbackDao.insert(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeFeedbackPo existing = knowledgeFeedbackDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            // 更新：直接更新
-            entity.setUpdateTime(Moments.now());
-            int success = knowledgeFeedbackDao.update(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+            Asserts.greaterThan(knowledgeFeedbackDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
+            return entity.getId();
         }
-
+        KnowledgeFeedbackPo existing = knowledgeFeedbackDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        Validations.validateSave(dto);
+        KnowledgeFeedbackPo entity = KnowledgeFeedbackConverter.INSTANCE.dto2po(dto);
+        entity.setId(existing.getId());
+        entity.setOrganId(existing.getOrganId());
+        entity.setCreateTime(existing.getCreateTime());
+        entity.setUpdateTime(Moments.now());
+        Asserts.greaterThan(knowledgeFeedbackDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
 
@@ -98,6 +102,7 @@ public class KnowledgeFeedbackServiceImpl implements KnowledgeFeedbackService {
     public int delete(Long id) {
         KnowledgeFeedbackPo existing = knowledgeFeedbackDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeFeedbackDao.delete(id);
     }
 }

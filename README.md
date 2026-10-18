@@ -1,8 +1,19 @@
+<p align="center">
+  <img src="https://github.com/g2rain.png" alt="G2Rain" width="180" />
+</p>
+
 # g2rain-knowledge
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-25-437291?logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
 G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、版本管理、受控发布、检索证据与受控问答能力。
 
 服务以 MySQL 作为知识元数据和发布状态的权威来源，以 Milvus 作为可重建的向量检索投影。调用方只能获得经组织隔离、活动版本和引用完整性校验后的证据，不接触存储路径、向量集合或模型供应商接口。
+
+[官网](https://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
 
 ## 当前能力
 
@@ -58,6 +69,7 @@ mvn -pl g2rain-knowledge-biz -am test
 - [接口与集成契约](docs/api/integration-contracts.md)
 - [配置、部署与恢复](docs/operations/configuration.md)
 - [开发计划与未完成项](docs/development/implementation-plan.md)
+- [社区与贡献](docs/community.md)
 
 ## 边界说明
 
@@ -66,4 +78,31 @@ mvn -pl g2rain-knowledge-biz -am test
 - Gateway 负责入口身份校验，本服务基于受信主体上下文与 `organ_id` 执行数据隔离。
 - 外部基础设施的生命周期、模型训练与模型账号管理不属于本服务职责。
 
-更多贡献与工作约束见 [AGENTS.md](AGENTS.md)。
+## 贡献
+
+欢迎通过 Issue、Discussion 和 Pull Request 参与 g2rain 建设。
+
+代码贡献前请尽量补充必要的测试和文档，并确保构建、测试与静态检查通过。提交代码时，请同步更新受影响的 `docs` 文档；新增或改变长期架构决策时，在 `docs/decisions` 中增加 ADR。
+
+提交前至少执行：
+
+```bash
+mvn clean verify
+```
+
+更多 Agent 与贡献工作约束见 [AGENTS.md](AGENTS.md) 与 [社区与贡献](docs/community.md)。
+
+## 许可证
+
+本项目基于 [Apache 2.0 许可证](LICENSE) 开源。
+
+## 联系我们
+
+- 官网：[https://www.g2rain.com](https://www.g2rain.com)
+- Issues：[GitHub Issues](https://github.com/g2rain/g2rain/issues)
+- 讨论：[GitHub Discussions](https://github.com/g2rain/g2rain/discussions)
+- 邮箱：[g2rain_developer@163.com](mailto:g2rain_developer@163.com)
+
+## 致谢
+
+感谢所有为 g2rain 项目提交 Issue、代码、文档、建议和使用反馈的开发者们！

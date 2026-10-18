@@ -112,14 +112,14 @@ public interface KnowledgeTaskDao {
     @IgnoreIsolation
     List<KnowledgeTaskPo> selectListWithoutIsolation(KnowledgeTaskSelectDto selectDto);
 
-    int claim(@Param("taskId") Long taskId, @Param("expectedVersion") Integer expectedVersion,
+    int claim(@Param("organId") Long organId, @Param("taskId") Long taskId, @Param("expectedVersion") Integer expectedVersion,
               @Param("workerId") String workerId, @Param("leaseExpireTime") LocalDateTime leaseExpireTime,
               @Param("now") LocalDateTime now);
 
-    int complete(@Param("taskId") Long taskId, @Param("workerId") String workerId,
+    int complete(@Param("organId") Long organId, @Param("taskId") Long taskId, @Param("workerId") String workerId,
                  @Param("expectedVersion") Integer expectedVersion, @Param("now") LocalDateTime now);
 
-    int fail(@Param("taskId") Long taskId, @Param("workerId") String workerId,
+    int fail(@Param("organId") Long organId, @Param("taskId") Long taskId, @Param("workerId") String workerId,
              @Param("expectedVersion") Integer expectedVersion, @Param("errorCode") String errorCode,
              @Param("errorSummary") String errorSummary, @Param("now") LocalDateTime now);
 
@@ -130,4 +130,8 @@ public interface KnowledgeTaskDao {
     int cancelPending(@Param("organId") Long organId, @Param("taskId") Long taskId,
                       @Param("expectedVersion") Integer expectedVersion, @Param("finishedTime") LocalDateTime finishedTime,
                       @Param("updateTime") LocalDateTime updateTime);
+
+    int armPending(@Param("organId") Long organId, @Param("taskId") Long taskId,
+                   @Param("expectedVersion") Integer expectedVersion, @Param("availableTime") LocalDateTime availableTime,
+                   @Param("updateTime") LocalDateTime updateTime);
 }

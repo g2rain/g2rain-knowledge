@@ -40,7 +40,7 @@ public interface KnowledgeRevisionConverter {
     /**
      * Dto -> Po
      * 自动将 createTime 和 updateTime 从 {@link String} 转换为 {@link LocalDateTime}
-     * 忽略 version 字段
+     * version 由草稿更新路径显式写入 PO 后走 updateByVersion；通用 dto2po 仍忽略，防止误映射
      * 忽略 deleteFlag 字段
      */
     @Mapping(target = "version", ignore = true)

@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import com.g2rain.common.validation.CreateGroup;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -26,10 +25,9 @@ import jakarta.validation.constraints.Size;
 public class KnowledgeItemDto extends BaseDto {
 
     /**
-     * 机构标识
+     * 机构标识（服务端填充）
      */
-    @NotNull(groups = CreateGroup.class)
-    @Schema(description = "机构标识（新增必填）")
+    @Schema(description = "机构标识（服务端填充，前端可省略）")
     private Long organId;
 
     /**
@@ -63,11 +61,10 @@ public class KnowledgeItemDto extends BaseDto {
     private String knowledgeType;
 
     /**
-     * 状态[ACTIVE:有效, INACTIVE:停用]
+     * 状态[ACTIVE:有效, INACTIVE:停用]；省略时服务端默认 ACTIVE
      */
-    @NotBlank(groups = CreateGroup.class)
     @Size(max = 32)
-    @Schema(description = "状态[ACTIVE:有效, INACTIVE:停用]（新增必填）", maxLength = 32)
+    @Schema(description = "状态[ACTIVE:有效, INACTIVE:停用]；省略时服务端默认 ACTIVE", maxLength = 32)
     private String status;
 
     /**
@@ -78,8 +75,8 @@ public class KnowledgeItemDto extends BaseDto {
     private String description;
 
     /**
-     * 创建用户标识
+     * 创建用户标识（服务端填充）
      */
-    @Schema(description = "创建用户标识")
+    @Schema(description = "创建用户标识（服务端填充，前端可省略）")
     private Long createUserId;
 }

@@ -10,6 +10,7 @@ import com.g2rain.knowledge.client.milvus.MilvusProperties;
 import com.g2rain.knowledge.client.milvus.MilvusSearchCandidate;
 import com.g2rain.knowledge.client.model.EmbeddingClient;
 import com.g2rain.knowledge.client.model.KnowledgeRerankClient;
+import com.g2rain.knowledge.client.model.KnowledgeRerankProperties;
 import com.g2rain.knowledge.client.model.RerankScore;
 import com.g2rain.knowledge.client.retrieve.KnowledgeRetrieveProperties;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
@@ -26,6 +27,7 @@ import com.g2rain.knowledge.domain.ContentHashes;
 import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
 import com.g2rain.knowledge.dto.KnowledgeRetrieveDto;
 import com.g2rain.knowledge.dto.KnowledgeTagSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
@@ -50,6 +52,8 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
         KnowledgeErrorCode.EMBEDDING_NOT_CONFIGURED.code(),
         KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED.code(),
         KnowledgeErrorCode.EMBEDDING_INVALID_RESPONSE.code(),
+        KnowledgeErrorCode.MILVUS_OPERATION_FAILED.code(),
+        KnowledgeErrorCode.MILVUS_INVALID_RESPONSE.code(),
         KnowledgeErrorCode.RERANK_NOT_CONFIGURED.code(),
         KnowledgeErrorCode.RERANK_OPERATION_FAILED.code(),
         KnowledgeErrorCode.RERANK_INVALID_RESPONSE.code(),
@@ -68,6 +72,7 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
     @Resource private KnowledgeStorageClient knowledgeStorageClient;
     @Resource private EmbeddingClient embeddingClient;
     @Resource private KnowledgeRerankClient knowledgeRerankClient;
+    @Resource private KnowledgeRerankProperties rerankProperties;
     @Resource private MilvusKnowledgeClient milvusKnowledgeClient;
     @Resource private MilvusProperties milvusProperties;
     @Resource private KnowledgeRetrieveProperties retrieveProperties;
@@ -107,6 +112,9 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
         if (evidence.isEmpty()) {
             return List.of();
         }
+        if (!rerankProperties.isEnabled()) {
+            return evidence.stream().limit(topK).toList();
+        }
         List<RerankScore> scores = dependency("rerank",
             () -> knowledgeRerankClient.rerank(query, evidence.stream().map(KnowledgeEvidenceVo::getContent).toList(), topK));
         return scores.stream().map(score -> {
@@ -136,7 +144,8 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
             return java.util.Optional.empty();
         }
         KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
-        if (item == null || !Objects.equals(item.getOrganId(), organId) || !"ACTIVE".equals(item.getStatus())) {
+        if (item == null || !Objects.equals(item.getOrganId(), organId)
+            || !KnowledgeEnablementStatus.ACTIVE.name().equals(item.getStatus())) {
             return java.util.Optional.empty();
         }
 

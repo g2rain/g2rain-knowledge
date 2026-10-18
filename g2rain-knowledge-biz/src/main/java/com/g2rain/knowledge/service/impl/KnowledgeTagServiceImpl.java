@@ -12,6 +12,8 @@ import com.g2rain.knowledge.dao.KnowledgeTagDao;
 import com.g2rain.knowledge.dao.po.KnowledgeTagPo;
 import com.g2rain.knowledge.dto.KnowledgeTagDto;
 import com.g2rain.knowledge.dto.KnowledgeTagSelectDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
+import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeTagService;
 import com.g2rain.knowledge.vo.KnowledgeTagVo;
 import com.g2rain.mybatis.pagination.PageContext;
@@ -36,6 +38,8 @@ public class KnowledgeTagServiceImpl implements KnowledgeTagService {
 
     @Resource(name = "knowledgeTagDao")
     private KnowledgeTagDao knowledgeTagDao;
+    @Resource
+    private KnowledgeAccessService knowledgeAccessService;
 
     private IdGenerator idGenerator;
 
@@ -67,30 +71,46 @@ public class KnowledgeTagServiceImpl implements KnowledgeTagService {
 
     @Override
     public Long save(KnowledgeTagDto dto) {
-        Validations.validateSave(dto);
+        Long organId = knowledgeAccessService.requireOrganId();
+        Long id = dto.getId();
+        boolean creating = Objects.isNull(id) || id == 0;
 
-        // 转换 DTO 为 PO
-        KnowledgeTagPo entity = KnowledgeTagConverter.INSTANCE.dto2po(dto);
-
-        // 判断是新增还是更新
-        Long id = entity.getId();
-        if (Objects.isNull(id) || id == 0) {
-            // 新增：使用IdGenerator生成主键
+        if (creating) {
+            dto.setOrganId(organId);
+            if (isBlank(dto.getStatus())) {
+                dto.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
+            }
+            if (Objects.isNull(dto.getSortOrder())) {
+                dto.setSortOrder(0);
+            }
+            Validations.validateSave(dto);
+            KnowledgeTagPo entity = KnowledgeTagConverter.INSTANCE.dto2po(dto);
             entity.setId(idGenerator.generateId());
+            entity.setOrganId(organId);
             LocalDateTime now = Moments.now();
-            entity.setUpdateTime(now);
             entity.setCreateTime(now);
-            int success = knowledgeTagDao.insert(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.CREATE_DATA_ERROR);
-        } else {
-            KnowledgeTagPo existing = knowledgeTagDao.selectById(id);
-            Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
-            // 更新：直接更新
-            entity.setUpdateTime(Moments.now());
-            int success = knowledgeTagDao.update(entity);
-            Asserts.greaterThan(success, 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
+            entity.setUpdateTime(now);
+            Asserts.greaterThan(knowledgeTagDao.insert(entity), 0, SystemErrorCode.CREATE_DATA_ERROR);
+            return entity.getId();
         }
 
+        KnowledgeTagPo existing = knowledgeTagDao.selectById(id);
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        Validations.validateSave(dto);
+
+        KnowledgeTagPo entity = KnowledgeTagConverter.INSTANCE.dto2po(dto);
+        entity.setId(existing.getId());
+        entity.setOrganId(existing.getOrganId());
+        entity.setCreateTime(existing.getCreateTime());
+        entity.setUpdateTime(Moments.now());
+        if (Objects.isNull(entity.getStatus())) {
+            entity.setStatus(existing.getStatus());
+        }
+        if (Objects.isNull(entity.getSortOrder())) {
+            entity.setSortOrder(existing.getSortOrder());
+        }
+        Asserts.greaterThan(knowledgeTagDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
 
@@ -98,6 +118,11 @@ public class KnowledgeTagServiceImpl implements KnowledgeTagService {
     public int delete(Long id) {
         KnowledgeTagPo existing = knowledgeTagDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeTagDao.delete(id);
+    }
+
+    private static boolean isBlank(String value) {
+        return Objects.isNull(value) || value.isBlank();
     }
 }

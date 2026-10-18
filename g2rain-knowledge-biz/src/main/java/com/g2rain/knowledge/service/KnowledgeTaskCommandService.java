@@ -1,6 +1,7 @@
 package com.g2rain.knowledge.service;
 
 import com.g2rain.knowledge.dto.KnowledgeTaskCancelDto;
+import com.g2rain.knowledge.dto.KnowledgeTaskDispatchDto;
 import com.g2rain.knowledge.dto.KnowledgeTaskRetryDto;
 
 /**
@@ -10,4 +11,6 @@ public interface KnowledgeTaskCommandService {
     void retry(KnowledgeTaskRetryDto dto);
 
     void cancel(KnowledgeTaskCancelDto dto);
+
+    void dispatch(KnowledgeTaskDispatchDto dto);
 }

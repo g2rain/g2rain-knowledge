@@ -26,6 +26,7 @@
 - [接口与集成契约](api/integration-contracts.md)
 - [安全边界](security/security-boundaries.md)
 - [架构决策记录](decisions/README.md)
+- [社区与贡献](community.md)
 
 ## 交付与运行
 

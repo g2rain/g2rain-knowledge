@@ -7,10 +7,8 @@ import com.g2rain.common.utils.Moments;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
 import com.g2rain.knowledge.client.storage.SourceMetadata;
 import com.g2rain.knowledge.client.storage.StoredSource;
-import com.g2rain.knowledge.dao.KnowledgeCategoryDao;
 import com.g2rain.knowledge.dao.KnowledgeItemDao;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
-import com.g2rain.knowledge.dao.po.KnowledgeCategoryPo;
 import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.domain.KnowledgeRevisionStateMachine;
@@ -19,12 +17,14 @@ import com.g2rain.knowledge.dto.KnowledgeCreateDto;
 import com.g2rain.knowledge.dto.KnowledgeDraftCreateDto;
 import com.g2rain.knowledge.dto.KnowledgeDraftEditDto;
 import com.g2rain.knowledge.dto.KnowledgeFaqEditDto;
+import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.enums.KnowledgeSourceType;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeDraftService;
 import com.g2rain.knowledge.service.KnowledgeDraftTxService;
+import com.g2rain.knowledge.service.KnowledgeSaveSupport;
 import com.g2rain.knowledge.service.KnowledgeTagGovernanceService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -39,15 +39,12 @@ import java.util.Objects;
  */
 @Service
 public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
-    private static final String ACTIVE = "ACTIVE";
     private static final String PENDING = "PENDING";
 
     @Resource
     private KnowledgeItemDao knowledgeItemDao;
     @Resource
     private KnowledgeRevisionDao knowledgeRevisionDao;
-    @Resource
-    private KnowledgeCategoryDao knowledgeCategoryDao;
     @Resource
     private IdGenerator idGenerator;
     @Resource
@@ -62,11 +59,13 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
     private KnowledgeStorageClient knowledgeStorageClient;
     @Resource
     private KnowledgeDraftTxService knowledgeDraftTxService;
+    @Resource
+    private KnowledgeSaveSupport knowledgeSaveSupport;
 
     @Override
     public Long createKnowledge(KnowledgeCreateDto dto) {
         Long organId = knowledgeAccessService.requireOrganId();
-        validateCategory(organId, dto.getCategoryId());
+        knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
         LocalDateTime now = Moments.now();
         KnowledgeItemPo item = new KnowledgeItemPo();
         item.setId(idGenerator.generateId());
@@ -75,9 +74,9 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         item.setKnowledgeKey(dto.getKnowledgeKey());
         item.setKnowledgeName(dto.getKnowledgeName());
         item.setKnowledgeType(dto.getKnowledgeType());
-        item.setStatus(ACTIVE);
+        item.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
         item.setDescription(dto.getDescription());
-        item.setCreateUserId(knowledgeAccessService.currentUserId());
+        item.setCreateUserId(knowledgeAccessService.requireUserId());
         item.setCreateTime(now);
         item.setUpdateTime(now);
         requireInserted(knowledgeItemDao.insert(item));
@@ -89,8 +88,8 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
     @Transactional
     public Long createDraft(KnowledgeDraftCreateDto dto) {
         Long organId = knowledgeAccessService.requireOrganId();
-        KnowledgeItemPo item = requireItem(dto.getKnowledgeId(), organId);
-        assertCompatibleSource(item.getKnowledgeType(), dto.getSourceType());
+        KnowledgeItemPo item = knowledgeSaveSupport.requireActiveItem(dto.getKnowledgeId(), organId);
+        knowledgeSaveSupport.assertCompatibleSource(item.getKnowledgeType(), dto.getSourceType());
 
         LocalDateTime now = Moments.now();
         KnowledgeRevisionPo revision = new KnowledgeRevisionPo();
@@ -104,7 +103,7 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         revision.setIndexStatus(PENDING);
         revision.setPriority(Objects.requireNonNullElse(dto.getPriority(), 0));
         revision.setTagsJson(knowledgeTagPolicy.asJson(knowledgeTagGovernanceService.validateDraftTags(dto.getTags())));
-        revision.setCreateUserId(knowledgeAccessService.currentUserId());
+        revision.setCreateUserId(knowledgeAccessService.requireUserId());
         revision.setCreateTime(now);
         revision.setUpdateTime(now);
         requireInserted(knowledgeRevisionDao.insert(revision));
@@ -176,20 +175,6 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         }
     }
 
-    private KnowledgeItemPo requireItem(Long knowledgeId, Long organId) {
-        KnowledgeItemPo item = knowledgeItemDao.selectById(knowledgeId);
-        if (Objects.isNull(item)) {
-            throw new BusinessException(SystemErrorCode.DATA_NOT_EXISTS, knowledgeId);
-        }
-        if (!ACTIVE.equals(item.getStatus())) {
-            throw new BusinessException(SystemErrorCode.PARAM_INVALID, "knowledgeId");
-        }
-        if (!Objects.equals(item.getOrganId(), organId)) {
-            throw new BusinessException(SystemErrorCode.UNAUTHORIZED, "跨机构知识主题");
-        }
-        return item;
-    }
-
     private KnowledgeRevisionPo requireRevision(Long revisionId) {
         KnowledgeRevisionPo revision = knowledgeRevisionDao.selectById(revisionId);
         if (Objects.isNull(revision)) {
@@ -197,24 +182,6 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         }
         knowledgeAccessService.assertSameOrgan(revision.getOrganId());
         return revision;
-    }
-
-    private void validateCategory(Long organId, Long categoryId) {
-        if (Objects.isNull(categoryId)) {
-            return;
-        }
-        KnowledgeCategoryPo category = knowledgeCategoryDao.selectById(categoryId);
-        if (Objects.isNull(category) || !Objects.equals(category.getOrganId(), organId) || !ACTIVE.equals(category.getStatus())) {
-            throw new BusinessException(KnowledgeErrorCode.CATEGORY_NOT_AVAILABLE);
-        }
-    }
-
-    private void assertCompatibleSource(String knowledgeType, String sourceType) {
-        boolean compatible = ("DOCUMENT".equals(knowledgeType) && KnowledgeSourceType.FILE.name().equals(sourceType))
-            || ("FAQ".equals(knowledgeType) && KnowledgeSourceType.FAQ.name().equals(sourceType));
-        if (!compatible) {
-            throw new BusinessException(KnowledgeErrorCode.SOURCE_TYPE_MISMATCH);
-        }
     }
 
     private void assertExpectedVersion(KnowledgeRevisionPo revision, Integer expectedVersion) {

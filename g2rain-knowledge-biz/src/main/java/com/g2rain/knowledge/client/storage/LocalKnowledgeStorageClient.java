@@ -8,6 +8,9 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,18 +20,16 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Stores PDF sources below a server-owned root. This initial implementation
- * intentionally accepts only PDFs because their signature can be checked
- * without claiming to safely validate every Office archive format.
+ * Stores FILE sources below a server-owned root. Accepts PDF, Markdown, and HTML.
+ * PDF bytes are checked with the {@code %PDF-} signature; text formats must be UTF-8.
  */
 @Component
 public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
-    private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+    private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(StandardCharsets.US_ASCII);
     private final KnowledgeStorageProperties properties;
 
     public LocalKnowledgeStorageClient(KnowledgeStorageProperties properties) {
@@ -43,8 +44,8 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
             throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
         }
         String displayFileName = sanitizeDisplayName(metadata.originalFileName());
-        if (!displayFileName.toLowerCase(Locale.ROOT).endsWith(".pdf")
-            || !"application/pdf".equalsIgnoreCase(metadata.contentType())) {
+        SourceFileKind kind = SourceFileKind.resolve(displayFileName, metadata.contentType());
+        if (kind == null) {
             throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
         }
 
@@ -54,17 +55,19 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
         assertWithinRoot(root, sourceDirectory);
         ensureDirectory(sourceDirectory, root);
         Path temporary = sourceDirectory.resolve(".upload-" + UUID.randomUUID() + ".tmp");
-        Path target = sourceDirectory.resolve(UUID.randomUUID() + ".pdf");
+        Path target = sourceDirectory.resolve(UUID.randomUUID() + kind.extension());
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            long size = copyPdfAndDigest(content, temporary, digest);
+            long size = kind == SourceFileKind.PDF
+                ? copyPdfAndDigest(content, temporary, digest)
+                : copyTextAndDigest(content, temporary, digest);
             if (size < 1 || size > properties.getMaxFileSize().toBytes()) {
                 Files.deleteIfExists(temporary);
                 throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
             }
             moveAtomically(temporary, target);
             return new StoredSource(root.relativize(target).toString().replace('\\', '/'), displayFileName,
-                "application/pdf", HexFormat.of().formatHex(digest.digest()), size);
+                kind.storedContentType(), HexFormat.of().formatHex(digest.digest()), size);
         } catch (BusinessException exception) {
             deleteQuietly(temporary);
             throw exception;
@@ -94,10 +97,13 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
         Path root = requireRoot();
         Path target = root.resolve(relativePath).normalize();
         assertWithinRoot(root, target);
+        if (!Files.isRegularFile(target)) {
+            throw new BusinessException(KnowledgeErrorCode.SOURCE_FILE_MISSING);
+        }
         try {
             return Files.newInputStream(target, StandardOpenOption.READ);
         } catch (IOException exception) {
-            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+            throw new BusinessException(KnowledgeErrorCode.SOURCE_FILE_MISSING);
         }
     }
 
@@ -110,7 +116,7 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
         ensureDirectory(directory, root);
         Path target = directory.resolve("document.md");
         try {
-            Files.writeString(target, content, java.nio.charset.StandardCharsets.UTF_8,
+            Files.writeString(target, content, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             return root.relativize(target).toString().replace('\\', '/');
         } catch (IOException exception) {
@@ -120,14 +126,23 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
 
     @Override
     public String readParsedChunk(String relativePath, String locator) {
-        if (locator == null || !locator.startsWith("char:")) throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        if (locator == null || !locator.startsWith("char:")) {
+            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        }
         String[] positions = locator.substring(5).split(":", -1);
-        if (positions.length != 2) throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        if (positions.length != 2) {
+            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        }
         try {
-            int start = Integer.parseInt(positions[0]); int end = Integer.parseInt(positions[1]);
-            Path root = requireRoot(); Path target = root.resolve(relativePath).normalize(); assertWithinRoot(root, target);
-            String content = Files.readString(target, java.nio.charset.StandardCharsets.UTF_8);
-            if (start < 0 || end < start || end > content.length()) throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+            int start = Integer.parseInt(positions[0]);
+            int end = Integer.parseInt(positions[1]);
+            Path root = requireRoot();
+            Path target = root.resolve(relativePath).normalize();
+            assertWithinRoot(root, target);
+            String content = Files.readString(target, StandardCharsets.UTF_8);
+            if (start < 0 || end < start || end > content.length()) {
+                throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+            }
             return content.substring(start, end);
         } catch (IOException | NumberFormatException exception) {
             throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
@@ -145,6 +160,16 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
             }
             output.write(prefix);
             total += prefix.length;
+            total += copyRemaining(digestInput, output, total);
+        }
+        return total;
+    }
+
+    private long copyTextAndDigest(InputStream content, Path temporary, MessageDigest digest) throws IOException {
+        long total = 0;
+        try (BufferedInputStream input = new BufferedInputStream(content);
+             DigestInputStream digestInput = new DigestInputStream(input, digest);
+             OutputStream output = Files.newOutputStream(temporary, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             byte[] buffer = new byte[8192];
             int read;
             while ((read = digestInput.read(buffer)) != -1) {
@@ -152,10 +177,37 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
                 if (total > properties.getMaxFileSize().toBytes()) {
                     throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
                 }
+                for (int index = 0; index < read; index++) {
+                    if (buffer[index] == 0) {
+                        throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
+                    }
+                }
                 output.write(buffer, 0, read);
             }
         }
+        try {
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+            decoder.decode(java.nio.ByteBuffer.wrap(Files.readAllBytes(temporary)));
+        } catch (java.nio.charset.CharacterCodingException exception) {
+            throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
+        }
         return total;
+    }
+
+    private long copyRemaining(InputStream input, OutputStream output, long already) throws IOException {
+        long total = already;
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > properties.getMaxFileSize().toBytes()) {
+                throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
+            }
+            output.write(buffer, 0, read);
+        }
+        return total - already;
     }
 
     private Path requireRoot() {

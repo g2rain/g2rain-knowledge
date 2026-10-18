@@ -17,6 +17,8 @@ public class EmbeddingProperties {
     private String url = "";
     private String modelName = "";
     private int dimension = 4096;
+    /** {@code float} or {@code base64}. Blank means the request omits the field. */
+    private String encodingFormat = "";
     private Duration connectTimeout = Duration.ofSeconds(5);
     private Duration readTimeout = Duration.ofSeconds(30);
 }

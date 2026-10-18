@@ -25,4 +25,18 @@ class KnowledgeRetrieveExceptionAdviceTest {
         assertNotNull(response.getBody());
         assertEquals(KnowledgeErrorCode.EMBEDDING_OPERATION_FAILED.code(), response.getBody().getErrorCode());
     }
+
+    @Test
+    void mapsMilvusDependencyFailureWithMilvusCode() {
+        ExceptionProcessor processor = (ex, locale) -> Result.error(ex.getErrorCode(), ex.getErrorMessage());
+        KnowledgeRetrieveExceptionAdvice advice = new KnowledgeRetrieveExceptionAdvice(processor);
+
+        ResponseEntity<Result<Void>> response = advice.handleDependencyUnavailable(
+            new KnowledgeDependencyException("milvus", KnowledgeErrorCode.MILVUS_OPERATION_FAILED));
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(KnowledgeErrorCode.MILVUS_OPERATION_FAILED.code(), response.getBody().getErrorCode());
+        assertEquals("向量库服务调用失败", response.getBody().getErrorMessage());
+    }
 }
