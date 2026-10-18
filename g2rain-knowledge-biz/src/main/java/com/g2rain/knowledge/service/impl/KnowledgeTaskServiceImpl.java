@@ -21,6 +21,7 @@ import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.common.web.PrincipalContextHolder;
 import com.g2rain.knowledge.task.KnowledgeTaskRequestedEvent;
+import com.g2rain.knowledge.task.KnowledgeTaskSchedule;
 import org.springframework.context.ApplicationEventPublisher;
 import com.g2rain.knowledge.vo.KnowledgeTaskVo;
 import com.g2rain.mybatis.pagination.PageContext;
@@ -153,7 +154,7 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
         task.setTaskStatus("PENDING");
         task.setIdempotencyKey(key);
         task.setAttemptNo(0);
-        task.setAvailableTime(now);
+        task.setAvailableTime(KnowledgeTaskSchedule.immediate());
         task.setTraceId(PrincipalContextHolder.getTraceId());
         task.setCreateTime(now);
         task.setUpdateTime(now);

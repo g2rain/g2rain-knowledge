@@ -12,6 +12,7 @@ import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeTaskCommandService;
 import com.g2rain.knowledge.task.KnowledgeTaskRequestedEvent;
+import com.g2rain.knowledge.task.KnowledgeTaskSchedule;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -48,7 +49,8 @@ public class KnowledgeTaskCommandServiceImpl implements KnowledgeTaskCommandServ
             throw new BusinessException(KnowledgeErrorCode.TASK_NOT_RETRYABLE);
         }
         LocalDateTime now = Moments.now();
-        if (knowledgeTaskDao.retryFailed(task.getOrganId(), task.getId(), dto.getExpectedVersion(), now, now) != 1) {
+        if (knowledgeTaskDao.retryFailed(task.getOrganId(), task.getId(), dto.getExpectedVersion(),
+            KnowledgeTaskSchedule.immediate(), now) != 1) {
             throw new BusinessException(KnowledgeErrorCode.TASK_VERSION_CONFLICT);
         }
         applicationEventPublisher.publishEvent(new KnowledgeTaskRequestedEvent(task.getId()));
@@ -79,7 +81,8 @@ public class KnowledgeTaskCommandServiceImpl implements KnowledgeTaskCommandServ
             throw new BusinessException(KnowledgeErrorCode.TASK_NOT_DISPATCHABLE);
         }
         LocalDateTime now = Moments.now();
-        if (knowledgeTaskDao.armPending(task.getOrganId(), task.getId(), task.getVersion(), now, now) != 1) {
+        if (knowledgeTaskDao.armPending(task.getOrganId(), task.getId(), task.getVersion(),
+            KnowledgeTaskSchedule.immediate(), now) != 1) {
             throw new BusinessException(KnowledgeErrorCode.TASK_VERSION_CONFLICT);
         }
         applicationEventPublisher.publishEvent(new KnowledgeTaskRequestedEvent(task.getId()));
