@@ -38,3 +38,9 @@
 - [部署与运行要求](operations/deployment.md)
 - [排障与恢复](operations/troubleshooting.md)
 - [备份、恢复与索引重建](operations/backup-and-recovery.md)
+
+
+## 发布
+
+- [发布记录与流程](releases/README.md)
+- [v1.0.0：配套、验证与已知限制](releases/v1.0.0.md)
