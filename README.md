@@ -15,6 +15,10 @@ G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、
 
 [官网](https://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
 
+## v1.0.0 稳定版
+
+维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
+
 ## 当前能力
 
 - 知识文件与 FAQ 的接收、版本、标签、审核、发布、回滚和审计；
@@ -58,7 +62,7 @@ mvn clean verify
 mvn -pl g2rain-knowledge-biz -am test
 ```
 
-2026-10-08 的完整构建已通过，Biz 模块 19 个单元测试全部通过。真实 MySQL/Milvus、Docling、模型服务与部署环境的集成验证仍在进行中；构建通过不代表这些外部依赖已经验收。
+2026-10-19 本地 `mvn clean verify` 通过，40 个测试无失败、错误或跳过；维护者另确认已在服务器端验证通过。服务器验证与本地测试分开记录，完整并发、恢复与延期项见[发布说明](docs/releases/v1.0.0.md)。
 
 ## 文档
 

@@ -100,3 +100,18 @@ documentation:
   entry: docs/index.md
   agentEntry: AGENTS.md
   activeRequirement: docs/requirements/RQ-005-knowledge-save-contract-upgrade.md
+
+
+release:
+  version: 1.0.0
+  channel: stable
+  notes: docs/releases/v1.0.0.md
+  pairedRepository: g2rain/g2rain-knowledge-app
+  pairedVersion: 1.0.0
+  verification:
+    maintainerServer: passed-reported
+    reportedAt: "2026-10-19"
+    note: 维护者确认服务器端验证通过；具体平台依赖版本及环境日志未附，不据此关闭历史可靠性和架构差异。
+    localBuild: passed
+    localTests: 40
+    localFailures: 0
