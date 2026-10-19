@@ -1,5 +1,7 @@
 # 架构例外
 
+> 发布补充（2026-10-19）：维护者确认服务器端验证通过，详见 [v1.0.0 发布记录](../releases/v1.0.0.md)。该验证不自动关闭下列代码与可靠性延期项；历史核对日期保留。
+
 ## 当前状态
 
 工程已具备 `g2rain-knowledge-api` / `g2rain-knowledge-biz` / `g2rain-knowledge-startup` 三模块与生成 CRUD 骨架；`java-domain-service 1.0.0` **尚无**已批准的中央 Profile 例外（跨模块同步写入、绕过 `organ_id`、直接对外暴露通用 CRUD 写契约、混合 embedding profile、将外部网络调用放入发布事务等仍须先登记再实施）。
