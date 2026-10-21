@@ -26,6 +26,8 @@ public class KnowledgeProcessPersistenceServiceImpl implements KnowledgeProcessP
 
     @Override @Transactional
     public void saveParsed(KnowledgeRevisionPo revision, String parsedPath, List<ParsedChunk> chunks) {
+        // 与后续 index 分事务：上次可能已落 chunk 后在 Embedding/Milvus 失败；重试前清掉该 revision 旧切片
+        knowledgeChunkDao.deletePhysicalByRevisionId(revision.getId());
         List<KnowledgeChunkPo> rows = chunks.stream().map(chunk -> {
             KnowledgeChunkPo row = new KnowledgeChunkPo();
             row.setId(idGenerator.generateId()); row.setOrganId(revision.getOrganId()); row.setRevisionId(revision.getId());
