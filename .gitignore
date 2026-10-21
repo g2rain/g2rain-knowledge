@@ -5,3 +5,4 @@ logs/
 data/
 .env
 codegen.local.properties
+.flattened-pom.xml
