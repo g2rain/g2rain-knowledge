@@ -47,4 +47,4 @@ data.isolation.tenantColumns=organ_id
 3. 人工审查生成结果的包名、隔离条件、逻辑删除、字段类型、校验和公开接口；生成代码不是领域正确性的证明。
 4. 在生成结果基础上实现领域扩展，并执行构建、测试及租户隔离、逻辑删除、发布/回滚和检索复核测试。
 
-参考实现来源：`g2rain-common` 的公共模型与上下文契约，以及 `g2rain-generator-maven-plugin` 的生成契约和 `codegen.properties`。当前工程已包含 API、Biz、Startup 三个 Maven 模块；实际依赖版本以根 `pom.xml` 及构建解析结果为准。`mvn clean verify` 已于 2026-10-08 通过，但这不替代真实数据库、组织隔离和外部依赖的集成验证。
+参考实现来源：`g2rain-common` 的公共模型与上下文契约，以及 `g2rain-generator-maven-plugin` 的生成契约和 `codegen.properties`。当前工程已包含 API、Biz、Startup 三个 Maven 模块；实际依赖版本以根 `pom.xml` 及构建解析结果为准。`mvn clean verify` 已于 2026-10-21 通过，但这不替代真实数据库、组织隔离和外部依赖的集成验证。
