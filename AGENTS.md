@@ -16,4 +16,4 @@
 
 ## Documentation status
 
-工程与领域主路径已部分实现；部署清单、真实外部依赖集成与部分可靠性能力仍见 [docs/development/implementation-plan.md](docs/development/implementation-plan.md) §10 与 [docs/architecture/deviations.md](docs/architecture/deviations.md)。变更前确认 `docs/project.yaml` 的 `activeRequirement`。
+工程已实现三模块、知识生命周期、检索/受控问答、保存契约升级（RQ-005）与受控原文件下载（RQ-006）的后端主路径。发布、部署清单、真实外部依赖集成及部分任务可靠性能力仍见 [docs/development/implementation-plan.md](docs/development/implementation-plan.md) §10 与 [docs/architecture/deviations.md](docs/architecture/deviations.md)。变更前确认 `docs/project.yaml` 的 `activeRequirement` 与验证记录。
