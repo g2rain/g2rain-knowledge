@@ -13,7 +13,11 @@ G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、
 
 服务以 MySQL 作为知识元数据和发布状态的权威来源，以 Milvus 作为可重建的向量检索投影。调用方只能获得经组织隔离、活动版本和引用完整性校验后的证据，不接触存储路径、向量集合或模型供应商接口。
 
-[官网](https://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
+[官网](http://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
+
+## v1.0.0 稳定版
+
+维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
 
 ## v1.0.0 稳定版
 
@@ -102,7 +106,7 @@ mvn clean verify
 
 ## 联系我们
 
-- 官网：[https://www.g2rain.com](https://www.g2rain.com)
+- 官网：[http://www.g2rain.com](http://www.g2rain.com)
 - Issues：[GitHub Issues](https://github.com/g2rain/g2rain/issues)
 - 讨论：[GitHub Discussions](https://github.com/g2rain/g2rain/discussions)
 - 邮箱：[g2rain_developer@163.com](mailto:g2rain_developer@163.com)

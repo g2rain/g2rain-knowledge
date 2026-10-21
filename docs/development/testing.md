@@ -1,12 +1,13 @@
 # 测试策略
 
-验证命令：`mvn clean verify`（根 POM）。
+验证命令：`mvn clean verify`（根 POM）。2026-10-21 的完整构建已通过，四个模块和 Startup JAR 均成功生成；该次运行未生成 Surefire XML 报告，因此测试数量以 [v1.0.0 发布记录](../releases/v1.0.0.md)中 2026-10-19 的已声明结果为准，不与本轮构建混写。
 
 ## 本轮已覆盖（单元）
 
 - 状态机、标签策略、本地存储、Docling/Embedding 客户端适配。
 - Retrieve：`Deadline`、content SHA-256 匹配丢弃、`KnowledgeRetrieveExceptionAdvice` → HTTP 503。
 - Task：PENDING `cancel` 成功 / 非 PENDING 拒绝。
+- 保存契约、受控下载、问答依赖错误映射及异步任务隔离相关测试源已纳入 Biz 模块；仍需保留真实运行环境的验证证据。
 
 ## 仍待验证（未跑或延期）
 

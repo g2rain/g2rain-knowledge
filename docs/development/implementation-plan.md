@@ -56,7 +56,7 @@
 | A11 | 早期领域规则“检索未知标签按无匹配”与接口/实现“必须存在则拒绝”不一致 | **已冻结为拒绝**（DEV-002）；停用标签保留历史检索语义；标签在 DRAFT 确认，`REVIEWING`/`APPROVED` 起冻结 |
 | A12 | 早期计划写「先 PARSE 再审核再 INDEX」；实现与业务流程已改为「先审源文件，再 PROCESS」 | 以 [domain-rules](../architecture/domain-rules.md) 与 [DEV-001](../architecture/deviations.md) 为准；计划中 PARSE/INDEX 分任务描述视为历史草案，主路径收敛为审核后 `PROCESS` |
 
-上述静态分析形成于 2026-10-06，不能据此宣称现有隔离插件、DDL 执行和依赖组合已通过验证。后续在 2026-10-08 执行的 `mvn clean verify` 已通过（Biz 19 个单元测试）；真实服务和集成验证范围仍以本计划列出的待验证项为准。
+上述静态分析形成于 2026-10-06，不能据此宣称现有隔离插件、DDL 执行和依赖组合已通过验证。后续的 2026-10-21 `mvn clean verify` 已通过（四模块和 Startup JAR 构建成功）；测试数以 2026-10-19 [发布记录](../releases/v1.0.0.md)中的已声明结果为准。真实服务和集成验证范围仍以本计划列出的待验证项为准。
 
 ## 3. common 与 Starter 的复用落点
 
