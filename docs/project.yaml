@@ -92,9 +92,10 @@ commands:
 verification:
   status: partially-verified
   reason: >
-    2026-10-08 已执行 mvn clean verify（通过，Biz 19 tests，0 failures / 0 errors / 0 skipped）。
-    本轮落地：文档冻结、VO 脱敏、replaceFile/retry/cancel HTTP、Retrieve Deadline/503/traceId/hash。
-    未验证：真实 MySQL/Milvus IT、replaceFile 端到端、发布顺序/offline/reconcile、任务并发列、P6/P7。
+    2026-10-21 已执行 mvn clean verify（通过，四模块与 Startup JAR 均成功构建）。
+    当前环境未生成 Surefire XML 报告，故不将历史测试数冒充为本轮统计；2026-10-19 发布记录声明 40 tests、0 failures / 0 errors / 0 skipped。
+    已实现：保存契约升级（RQ-005）、VO 脱敏、replaceFile/retry/cancel、受控原文件下载（RQ-006）、Retrieve Deadline/503/traceId/hash。
+    未验证：真实 MySQL/Milvus IT、replaceFile/下载端到端、发布顺序/offline/reconcile、任务并发列、P6/P7。
 
 documentation:
   entry: docs/index.md
