@@ -6,24 +6,32 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
+import io.milvus.v2.common.ConsistencyLevel;
 import io.milvus.v2.common.IndexParam;
-import io.milvus.v2.service.vector.request.UpsertReq;
+import io.milvus.v2.service.collection.request.DescribeCollectionReq;
+import io.milvus.v2.service.utility.request.FlushReq;
 import io.milvus.v2.service.vector.request.QueryReq;
 import io.milvus.v2.service.vector.request.SearchReq;
+import io.milvus.v2.service.vector.request.UpsertReq;
 import io.milvus.v2.service.vector.request.data.FloatVec;
-import io.milvus.v2.service.collection.request.DescribeCollectionReq;
+import io.milvus.v2.service.vector.response.QueryResp;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
 /** Milvus V2 staged writer. Collection schema is owned by deployment migration. */
+@Slf4j
 @Component
 public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
     private static final List<String> FULL_ROW_FIELDS = List.of(
         "chunk_id", "organ_id", "knowledge_id", "revision_id", "searchable", "tags",
         "source_type", "content", "title_path", "page_start", "page_end", "embedding_profile", "content_vector"
     );
+    /** Enough for a single revision; avoids SDK default limit truncating confirm queries. */
+    private static final long REVISION_QUERY_LIMIT = 16_384L;
+    private static final int SEARCHABLE_CONFIRM_ATTEMPTS = 5;
 
     private final MilvusProperties properties;
     private volatile MilvusClientV2 client;
@@ -36,6 +44,7 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             List<JsonObject> data = entities.stream().map(this::json).toList();
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(data).build());
+            flush(collectionName);
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -48,7 +57,10 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             return client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
-                .outputFields(List.of("chunk_id")).build()).getQueryResults().size();
+                .outputFields(List.of("chunk_id"))
+                .consistencyLevel(ConsistencyLevel.STRONG)
+                .limit(REVISION_QUERY_LIMIT)
+                .build()).getQueryResults().size();
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -63,8 +75,13 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             var rows = client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
-                .outputFields(List.of("chunk_id", "organ_id", "revision_id", "tags", "embedding_profile", "searchable")).build()).getQueryResults();
+                .outputFields(List.of("chunk_id", "organ_id", "revision_id", "tags", "embedding_profile", "searchable"))
+                .consistencyLevel(ConsistencyLevel.STRONG)
+                .limit(REVISION_QUERY_LIMIT)
+                .build()).getQueryResults();
             if (rows.size() != expected.size()) {
+                log.warn("verifyStaged size mismatch: collection={}, organId={}, revisionId={}, expected={}, actual={}",
+                    collectionName, organId, revisionId, expected.size(), rows.size());
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
             // SDK result maps are normalized here by field name; each expected entity must match all filter-critical fields.
@@ -74,8 +91,10 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
                     && String.valueOf(row.getEntity().get("revision_id")).equals(String.valueOf(entity.revisionId()))
                     && String.valueOf(row.getEntity().get("embedding_profile")).equals(entity.embeddingProfile())
                     && sameTags(row.getEntity().get("tags"), entity.tags())
-                    && Boolean.FALSE.equals(row.getEntity().get("searchable")));
+                    && !asBoolean(row.getEntity().get("searchable")));
                 if (!matched) {
+                    log.warn("verifyStaged entity mismatch: collection={}, organId={}, revisionId={}, chunkId={}",
+                        collectionName, organId, revisionId, entity.chunkId());
                     throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
                 }
             }
@@ -101,20 +120,20 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             // Upsert requires the full non-nullable row; only flipping searchable is rejected by Milvus.
-            var rows = client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
-                .outputFields(FULL_ROW_FIELDS).build()).getQueryResults();
+            var rows = queryRevision(collectionName, filter, FULL_ROW_FIELDS);
             List<JsonObject> changes = rows.stream()
                 .map(row -> copyRow(row.getEntity(), searchable))
                 .toList();
             if (changes.isEmpty()) {
+                log.warn("setSearchable found no entities: collection={}, organId={}, revisionId={}, searchable={}",
+                    collectionName, organId, revisionId, searchable);
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(changes).build());
-            var actual = client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
-                .outputFields(List.of("chunk_id", "searchable")).build()).getQueryResults();
-            boolean confirmed = actual.size() == changes.size() && actual.stream()
-                .allMatch(row -> Boolean.parseBoolean(String.valueOf(row.getEntity().get("searchable"))) == searchable);
-            if (!confirmed) {
+            flush(collectionName);
+            if (!confirmSearchable(collectionName, filter, changes.size(), searchable)) {
+                log.warn("setSearchable confirm failed after upsert+flush: collection={}, organId={}, revisionId={}, expectedSearchable={}, expectedCount={}",
+                    collectionName, organId, revisionId, searchable, changes.size());
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
         } catch (BusinessException exception) {
@@ -122,6 +141,40 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         } catch (RuntimeException exception) {
             throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
         }
+    }
+
+    private boolean confirmSearchable(String collectionName, String filter, int expectedCount, boolean searchable) {
+        for (int attempt = 1; attempt <= SEARCHABLE_CONFIRM_ATTEMPTS; attempt++) {
+            var actual = queryRevision(collectionName, filter, List.of("chunk_id", "searchable"));
+            long matched = actual.stream().filter(row -> asBoolean(row.getEntity().get("searchable")) == searchable).count();
+            if (actual.size() == expectedCount && matched == expectedCount) {
+                return true;
+            }
+            log.info("setSearchable confirm attempt {}/{}: collection={}, expectedCount={}, actualCount={}, matchedSearchable={}",
+                attempt, SEARCHABLE_CONFIRM_ATTEMPTS, collectionName, expectedCount, actual.size(), matched);
+            if (attempt < SEARCHABLE_CONFIRM_ATTEMPTS) {
+                try {
+                    Thread.sleep(50L * attempt);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    private List<QueryResp.QueryResult> queryRevision(
+        String collectionName, String filter, List<String> outputFields) {
+        return client().query(QueryReq.builder().collectionName(collectionName).filter(filter)
+            .outputFields(outputFields)
+            .consistencyLevel(ConsistencyLevel.STRONG)
+            .limit(REVISION_QUERY_LIMIT)
+            .build()).getQueryResults();
+    }
+
+    private void flush(String collectionName) {
+        client().flush(FlushReq.builder().collectionNames(List.of(collectionName)).build());
     }
 
     private JsonObject copyRow(Map<String, Object> entity, boolean searchable) {
@@ -188,6 +241,30 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             return number.floatValue();
         }
         return Float.parseFloat(String.valueOf(value));
+    }
+
+    /** Accepts Boolean, 0/1 numbers, and common string forms from Milvus SDK result maps. */
+    static boolean asBoolean(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isEmpty()) {
+            return false;
+        }
+        if ("1".equals(text) || "true".equalsIgnoreCase(text) || "yes".equalsIgnoreCase(text)) {
+            return true;
+        }
+        if ("0".equals(text) || "false".equalsIgnoreCase(text) || "no".equalsIgnoreCase(text)) {
+            return false;
+        }
+        return Boolean.parseBoolean(text);
     }
 
     @Override
