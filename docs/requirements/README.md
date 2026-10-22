@@ -7,6 +7,7 @@
 
 ## 需求清单
 
+- [RQ-007：知识内容按业务团队管理的权限升级方案（方案草案）](RQ-007-knowledge-management-scope.md)
 - [RQ-003：知识库领域规则与管理接口](RQ-003-knowledge-domain-rules.md)
 - [RQ-001：知识库 MySQL 数据结构](RQ-001-knowledge-mysql-schema.md)
 - [RQ-002：知识库服务架构与业务流程](RQ-002-knowledge-service-architecture.md)

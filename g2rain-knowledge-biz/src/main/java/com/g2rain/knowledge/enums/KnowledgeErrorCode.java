@@ -18,6 +18,7 @@ public enum KnowledgeErrorCode implements ErrorCode {
     REVISION_NOT_REVIEWABLE("knowledge.40907", "当前知识版本不可审核"),
     REVIEW_COMMENT_REQUIRED("knowledge.40005", "审核拒绝必须填写原因"),
     INVALID_SOURCE_FILE("knowledge.40004", "知识源文件不符合允许的格式或大小"),
+    IMPORT_FILE_INVALID("knowledge.40010", "批量导入文件无效或为空"),
     SOURCE_NOT_READY("knowledge.40905", "知识草稿尚未具备可解析的来源内容"),
     SOURCE_FILE_MISSING("knowledge.40914", "知识原文件不存在或不可读"),
     SOURCE_DOWNLOAD_NOT_SUPPORTED("knowledge.40915", "当前版本不支持原文件下载"),

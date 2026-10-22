@@ -2,9 +2,12 @@ package com.g2rain.knowledge.service;
 
 import com.g2rain.common.model.PageData;
 import com.g2rain.common.model.PageSelectListDto;
+import com.g2rain.knowledge.dto.KnowledgeImportOptionsDto;
 import com.g2rain.knowledge.dto.KnowledgeItemDto;
 import com.g2rain.knowledge.dto.KnowledgeItemSelectDto;
+import com.g2rain.knowledge.vo.KnowledgeImportResultVo;
 import com.g2rain.knowledge.vo.KnowledgeItemVo;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -47,4 +50,14 @@ public interface KnowledgeItemService {
      * @return 操作结果（影响行数）
      */
     int delete(Long id);
+
+    /**
+     * Batch-import FAQ topics from a CSV file.
+     */
+    KnowledgeImportResultVo importFaq(KnowledgeImportOptionsDto options, MultipartFile file);
+
+    /**
+     * Batch-import DOCUMENT topics from source files (PDF / Markdown / HTML).
+     */
+    KnowledgeImportResultVo importFiles(KnowledgeImportOptionsDto options, List<MultipartFile> files);
 }
