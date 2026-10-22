@@ -47,13 +47,18 @@ public interface KnowledgeItemApi {
     @Operation(summary = "分页查询知识主题表列表", description = "分页查询知识主题表列表")
     Result<PageData<KnowledgeItemVo>> selectPage(PageSelectListDto<KnowledgeItemSelectDto> selectDto);
 
+    @PostMapping(value = "/import/items", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "批量导入主题 CSV", description = "CSV 创建 DOCUMENT 主题与空 FILE 草稿；knowledge_key 已存在则跳过")
+    Result<KnowledgeImportResultVo> importItems(KnowledgeImportOptionsDto options,
+                                                @RequestParam("file") MultipartFile file);
+
     @PostMapping(value = "/import/faq", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "批量导入 FAQ", description = "CSV 批量创建 FAQ 主题与草稿；knowledge_key 已存在则跳过")
+    @Operation(summary = "批量导入 FAQ", description = "CSV 批量创建 FAQ 主题与草稿；标签/优先级写入主题；knowledge_key 已存在则跳过")
     Result<KnowledgeImportResultVo> importFaq(KnowledgeImportOptionsDto options,
                                               @RequestParam("file") MultipartFile file);
 
     @PostMapping(value = "/import/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "批量导入文件", description = "多文件批量创建 DOCUMENT 主题与草稿；文件名（无扩展名）为 knowledge_key")
+    @Operation(summary = "批量挂接文件", description = "按文件名 stem 挂接到已有 DOCUMENT 主题的 FILE 草稿；主题不存在则失败")
     Result<KnowledgeImportResultVo> importFiles(KnowledgeImportOptionsDto options,
                                                 @RequestParam("files") List<MultipartFile> files);
 }

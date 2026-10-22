@@ -164,12 +164,6 @@ public class KnowledgeRevisionDto extends BaseDto {
     private LocalDateTime indexCompletedTime;
 
     /**
-     * 运营与同主题并列排序优先级；省略时服务端默认 0
-     */
-    @Schema(description = "运营优先级；省略时服务端默认 0")
-    private Integer priority;
-
-    /**
      * 审核用户标识（只读）
      */
     @Schema(description = "审核用户标识（只读）")
@@ -207,11 +201,4 @@ public class KnowledgeRevisionDto extends BaseDto {
     @Size(max = 16777215)
     @Schema(description = "FAQ标准答案，仅FAQ来源使用", maxLength = 16777215)
     private String faqAnswer;
-
-    /**
-     * 版本已选标签编码数组 JSON；省略或空字符串规范化为 []
-     */
-    @Size(max = 1073741824)
-    @Schema(description = "标签编码 JSON 数组；省略或空字符串规范化为 []", maxLength = 1073741824)
-    private String tagsJson;
 }

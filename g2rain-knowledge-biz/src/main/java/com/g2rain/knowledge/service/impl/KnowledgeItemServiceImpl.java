@@ -25,6 +25,7 @@ import com.g2rain.knowledge.dto.KnowledgeReviewDto;
 import com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto;
 import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
+import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeDraftService;
 import com.g2rain.knowledge.service.KnowledgeItemService;
@@ -121,6 +122,10 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             if (isBlank(dto.getStatus())) {
                 dto.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
             }
+            if (Objects.isNull(dto.getPriority())) {
+                dto.setPriority(0);
+            }
+            dto.setTagsJson(knowledgeSaveSupport.normalizeTagsJson(dto.getTagsJson()));
             knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
             Validations.validateSave(dto);
             KnowledgeItemPo entity = KnowledgeItemConverter.INSTANCE.dto2po(dto);
@@ -143,6 +148,9 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             throw new BusinessException(KnowledgeErrorCode.KNOWLEDGE_TYPE_LOCKED);
         }
         knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
+        if (Objects.nonNull(dto.getTagsJson())) {
+            dto.setTagsJson(knowledgeSaveSupport.normalizeTagsJson(dto.getTagsJson()));
+        }
         Validations.validateSave(dto);
 
         KnowledgeItemPo entity = KnowledgeItemConverter.INSTANCE.dto2po(dto);
@@ -157,6 +165,12 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         if (Objects.isNull(entity.getKnowledgeType())) {
             entity.setKnowledgeType(existing.getKnowledgeType());
         }
+        if (Objects.isNull(entity.getPriority())) {
+            entity.setPriority(existing.getPriority());
+        }
+        if (Objects.isNull(entity.getTagsJson())) {
+            entity.setTagsJson(existing.getTagsJson());
+        }
         Asserts.greaterThan(knowledgeItemDao.update(entity), 0, SystemErrorCode.UPDATE_DATA_ERROR, id);
         return entity.getId();
     }
@@ -167,6 +181,29 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
         knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeItemDao.delete(id);
+    }
+
+    @Override
+    public KnowledgeImportResultVo importItems(KnowledgeImportOptionsDto options, MultipartFile file) {
+        KnowledgeImportOptionsDto safeOptions = options == null ? new KnowledgeImportOptionsDto() : options;
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
+        }
+        List<ItemRow> rows;
+        try {
+            rows = parseItemCsv(file.getInputStream());
+        } catch (IOException exception) {
+            throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID, exception);
+        }
+        if (rows.isEmpty()) {
+            throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
+        }
+        KnowledgeImportResultVo result = new KnowledgeImportResultVo();
+        for (ItemRow row : rows) {
+            result.getItems().add(importOneItem(safeOptions, row));
+        }
+        tally(result);
+        return result;
     }
 
     @Override
@@ -215,6 +252,29 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         return result;
     }
 
+    private KnowledgeImportItemVo importOneItem(KnowledgeImportOptionsDto options, ItemRow row) {
+        KnowledgeImportItemVo item = new KnowledgeImportItemVo();
+        item.setKnowledgeKey(row.knowledgeKey());
+        try {
+            assertKnowledgeKey(row.knowledgeKey());
+            if (findExistingByKey(row.knowledgeKey()) != null) {
+                return skipped(item, "knowledge_key already exists");
+            }
+            if (isBlank(row.knowledgeName())) {
+                return failed(item, KnowledgeErrorCode.IMPORT_FILE_INVALID, "主题 CSV 行缺少 knowledge_name");
+            }
+            Integer priority = row.priority() != null ? row.priority() : Objects.requireNonNullElse(options.getPriority(), 0);
+            Long knowledgeId = createTopic(row.knowledgeKey(), row.knowledgeName(), "DOCUMENT",
+                options.getCategoryId(), row.description(), options.getTags(), priority);
+            Long revisionId = createDraft(knowledgeId, "FILE");
+            return success(item, knowledgeId, revisionId);
+        } catch (BusinessException exception) {
+            return failed(item, exception);
+        } catch (RuntimeException exception) {
+            return failed(item, KnowledgeErrorCode.STORAGE_OPERATION_FAILED, exception.getMessage());
+        }
+    }
+
     private KnowledgeImportItemVo importOneFaq(KnowledgeImportOptionsDto options, FaqRow row) {
         KnowledgeImportItemVo item = new KnowledgeImportItemVo();
         item.setKnowledgeKey(row.knowledgeKey());
@@ -226,9 +286,10 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             if (isBlank(row.knowledgeName()) || isBlank(row.question()) || isBlank(row.answer())) {
                 return failed(item, KnowledgeErrorCode.IMPORT_FILE_INVALID, "FAQ 行缺少名称或问答内容");
             }
+            Integer priority = row.priority() != null ? row.priority() : Objects.requireNonNullElse(options.getPriority(), 0);
             Long knowledgeId = createTopic(row.knowledgeKey(), row.knowledgeName(), "FAQ",
-                options.getCategoryId(), row.description());
-            Long revisionId = createDraft(knowledgeId, "FAQ", options.getTags());
+                options.getCategoryId(), row.description(), options.getTags(), priority);
+            Long revisionId = createDraft(knowledgeId, "FAQ");
             KnowledgeRevisionPo revision = requireRevision(revisionId);
             KnowledgeFaqEditDto faq = new KnowledgeFaqEditDto();
             faq.setRevisionId(revisionId);
@@ -255,19 +316,19 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             if (SourceFileKind.resolve(originalName, file.getContentType()) == null) {
                 return failed(item, KnowledgeErrorCode.INVALID_SOURCE_FILE, "不支持的文件类型");
             }
-            if (findExistingByKey(knowledgeKey) != null) {
-                return skipped(item, "knowledge_key already exists");
+            KnowledgeItemPo existing = findExistingByKey(knowledgeKey);
+            if (existing == null) {
+                return failed(item, KnowledgeErrorCode.IMPORT_ITEM_NOT_FOUND,
+                    KnowledgeErrorCode.IMPORT_ITEM_NOT_FOUND.messageTemplate());
             }
-            Long knowledgeId = createTopic(knowledgeKey, knowledgeKey, "DOCUMENT",
-                options.getCategoryId(), null);
-            Long revisionId = createDraft(knowledgeId, "FILE", options.getTags());
+            Long revisionId = findOrCreateFileDraft(existing.getId());
             KnowledgeRevisionPo revision = requireRevision(revisionId);
             SourceMetadata metadata = new SourceMetadata(originalName, file.getContentType(), file.getSize());
             try (InputStream content = file.getInputStream()) {
                 knowledgeDraftService.replaceFile(revisionId, revision.getVersion(), content, metadata);
             }
             maybeSubmitReview(options, revisionId);
-            return success(item, knowledgeId, revisionId);
+            return success(item, existing.getId(), revisionId);
         } catch (BusinessException exception) {
             return failed(item, exception);
         } catch (Exception exception) {
@@ -276,24 +337,36 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
     }
 
     private Long createTopic(String knowledgeKey, String knowledgeName, String knowledgeType,
-                             Long categoryId, String description) {
+                             Long categoryId, String description, List<String> tags, Integer priority) {
         KnowledgeCreateDto create = new KnowledgeCreateDto();
         create.setKnowledgeKey(knowledgeKey);
         create.setKnowledgeName(knowledgeName);
         create.setKnowledgeType(knowledgeType);
         create.setCategoryId(categoryId);
         create.setDescription(description);
+        create.setTags(tags);
+        create.setPriority(priority);
         return knowledgeDraftService.createKnowledge(create);
     }
 
-    private Long createDraft(Long knowledgeId, String sourceType, List<String> tags) {
+    private Long createDraft(Long knowledgeId, String sourceType) {
         KnowledgeDraftCreateDto draft = new KnowledgeDraftCreateDto();
         draft.setKnowledgeId(knowledgeId);
         draft.setRevisionNo(IMPORT_REVISION_NO);
         draft.setSourceType(sourceType);
-        draft.setTags(tags);
-        draft.setPriority(0);
         return knowledgeDraftService.createDraft(draft);
+    }
+
+    private Long findOrCreateFileDraft(Long knowledgeId) {
+        KnowledgeRevisionSelectDto query = new KnowledgeRevisionSelectDto();
+        query.setKnowledgeId(knowledgeId);
+        query.setSourceType("FILE");
+        query.setRevisionStatus(KnowledgeRevisionStatus.DRAFT.name());
+        List<KnowledgeRevisionPo> drafts = knowledgeRevisionDao.selectList(query);
+        if (!drafts.isEmpty()) {
+            return drafts.getFirst().getId();
+        }
+        return createDraft(knowledgeId, "FILE");
     }
 
     private void maybeSubmitReview(KnowledgeImportOptionsDto options, Long revisionId) {
@@ -327,6 +400,41 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         }
     }
 
+    private static List<ItemRow> parseItemCsv(InputStream inputStream) throws IOException {
+        List<ItemRow> rows = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                return rows;
+            }
+            headerLine = stripBom(headerLine);
+            List<String> headers = splitCsvLine(headerLine).stream()
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .toList();
+            int keyIdx = headers.indexOf("knowledge_key");
+            int nameIdx = headers.indexOf("knowledge_name");
+            int descriptionIdx = headers.indexOf("description");
+            int priorityIdx = headers.indexOf("priority");
+            if (keyIdx < 0 || nameIdx < 0) {
+                throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
+            }
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                List<String> cols = splitCsvLine(line);
+                rows.add(new ItemRow(
+                    cell(cols, keyIdx),
+                    cell(cols, nameIdx),
+                    descriptionIdx >= 0 ? cell(cols, descriptionIdx) : null,
+                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null)
+                ));
+            }
+        }
+        return rows;
+    }
+
     private static List<FaqRow> parseFaqCsv(InputStream inputStream) throws IOException {
         List<FaqRow> rows = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
@@ -343,6 +451,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             int questionIdx = headers.indexOf("faq_question");
             int answerIdx = headers.indexOf("faq_answer");
             int descriptionIdx = headers.indexOf("description");
+            int priorityIdx = headers.indexOf("priority");
             if (keyIdx < 0 || nameIdx < 0 || questionIdx < 0 || answerIdx < 0) {
                 throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
             }
@@ -357,11 +466,23 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
                     cell(cols, nameIdx),
                     cell(cols, questionIdx),
                     cell(cols, answerIdx),
-                    descriptionIdx >= 0 ? cell(cols, descriptionIdx) : null
+                    descriptionIdx >= 0 ? cell(cols, descriptionIdx) : null,
+                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null)
                 ));
             }
         }
         return rows;
+    }
+
+    private static Integer parsePriority(String raw) {
+        if (isBlank(raw)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException exception) {
+            throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
+        }
     }
 
     private static String cell(List<String> cols, int index) {
@@ -468,6 +589,10 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         return Objects.isNull(value) || value.isBlank();
     }
 
-    private record FaqRow(String knowledgeKey, String knowledgeName, String question, String answer, String description) {
+    private record ItemRow(String knowledgeKey, String knowledgeName, String description, Integer priority) {
+    }
+
+    private record FaqRow(String knowledgeKey, String knowledgeName, String question, String answer,
+                          String description, Integer priority) {
     }
 }

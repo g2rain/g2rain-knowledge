@@ -30,14 +30,12 @@
         <result column="embedding_profile" property="embeddingProfile" jdbcType="VARCHAR"/>
         <result column="embedding_model" property="embeddingModel" jdbcType="VARCHAR"/>
         <result column="index_completed_time" property="indexCompletedTime" jdbcType="TIMESTAMP"/>
-        <result column="priority" property="priority" jdbcType="INTEGER"/>
         <result column="reviewer_user_id" property="reviewerUserId" jdbcType="BIGINT"/>
         <result column="review_time" property="reviewTime" jdbcType="TIMESTAMP"/>
         <result column="review_comment" property="reviewComment" jdbcType="VARCHAR"/>
         <result column="create_user_id" property="createUserId" jdbcType="BIGINT"/>
         <result column="faq_question" property="faqQuestion" jdbcType="LONGVARCHAR"/>
         <result column="faq_answer" property="faqAnswer" jdbcType="LONGVARCHAR"/>
-        <result column="tags_json" property="tagsJson" jdbcType="LONGVARCHAR"/>
         <!-- deleteFlag字段（如果存在） -->
         <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
         <!-- version字段（如果存在） -->
@@ -145,10 +143,6 @@
                         index_completed_time
                         <include refid="directionClause"/>
                     </when>
-                    <when test="item.column == 'priority'">
-                        priority
-                        <include refid="directionClause"/>
-                    </when>
                     <when test="item.column == 'reviewerUserId'">
                         reviewer_user_id
                         <include refid="directionClause"/>
@@ -173,10 +167,6 @@
                         faq_answer
                         <include refid="directionClause"/>
                     </when>
-                    <when test="item.column == 'tagsJson'">
-                        tags_json
-                        <include refid="directionClause"/>
-                    </when>
                 </choose>
             </foreach>
         </trim>
@@ -190,7 +180,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -201,7 +191,7 @@
         <!-- 基础字段值 -->
         #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
         <!-- 业务字段值 -->
-        #{organId, jdbcType=BIGINT}, #{knowledgeId, jdbcType=BIGINT}, #{revisionNo, jdbcType=VARCHAR}, #{sourceType, jdbcType=VARCHAR}, #{revisionStatus, jdbcType=VARCHAR}, #{sourceFileName, jdbcType=VARCHAR}, #{sourceContentType, jdbcType=VARCHAR}, #{sourceStoragePath, jdbcType=VARCHAR}, #{sourceSha256, jdbcType=CHAR}, #{sourceFileSize, jdbcType=BIGINT}, #{parserName, jdbcType=VARCHAR}, #{parserVersion, jdbcType=VARCHAR}, #{parserTaskId, jdbcType=VARCHAR}, #{parsedStoragePath, jdbcType=VARCHAR}, #{chunkCount, jdbcType=INTEGER}, #{indexStatus, jdbcType=VARCHAR}, #{embeddingProfile, jdbcType=VARCHAR}, #{embeddingModel, jdbcType=VARCHAR}, #{indexCompletedTime, jdbcType=TIMESTAMP}, #{priority, jdbcType=INTEGER}, #{reviewerUserId, jdbcType=BIGINT}, #{reviewTime, jdbcType=TIMESTAMP}, #{reviewComment, jdbcType=VARCHAR}, #{createUserId, jdbcType=BIGINT}, #{faqQuestion, jdbcType=LONGVARCHAR}, #{faqAnswer, jdbcType=LONGVARCHAR}, #{tagsJson, jdbcType=LONGVARCHAR},
+        #{organId, jdbcType=BIGINT}, #{knowledgeId, jdbcType=BIGINT}, #{revisionNo, jdbcType=VARCHAR}, #{sourceType, jdbcType=VARCHAR}, #{revisionStatus, jdbcType=VARCHAR}, #{sourceFileName, jdbcType=VARCHAR}, #{sourceContentType, jdbcType=VARCHAR}, #{sourceStoragePath, jdbcType=VARCHAR}, #{sourceSha256, jdbcType=CHAR}, #{sourceFileSize, jdbcType=BIGINT}, #{parserName, jdbcType=VARCHAR}, #{parserVersion, jdbcType=VARCHAR}, #{parserTaskId, jdbcType=VARCHAR}, #{parsedStoragePath, jdbcType=VARCHAR}, #{chunkCount, jdbcType=INTEGER}, #{indexStatus, jdbcType=VARCHAR}, #{embeddingProfile, jdbcType=VARCHAR}, #{embeddingModel, jdbcType=VARCHAR}, #{indexCompletedTime, jdbcType=TIMESTAMP}, #{reviewerUserId, jdbcType=BIGINT}, #{reviewTime, jdbcType=TIMESTAMP}, #{reviewComment, jdbcType=VARCHAR}, #{createUserId, jdbcType=BIGINT}, #{faqQuestion, jdbcType=LONGVARCHAR}, #{faqAnswer, jdbcType=LONGVARCHAR},
         <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
         0,
         <!-- version字段值（如果存在，设置默认值为0） -->
@@ -275,9 +265,6 @@
             <if test="indexCompletedTime != null">
                 index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP},
             </if>
-            <if test="priority != null">
-                priority = #{priority, jdbcType=INTEGER},
-            </if>
             <if test="reviewerUserId != null">
                 reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT},
             </if>
@@ -296,9 +283,6 @@
             <if test="faqAnswer != null">
                 faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR},
             </if>
-            <if test="tagsJson != null">
-                tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
-            </if>
             <!-- version字段更新（如果存在，版本号自增） -->
             version = version + 1
         </set>
@@ -313,7 +297,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -332,7 +316,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -432,9 +416,6 @@
             <if test="indexCompletedTime != null">
                 AND index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP}
             </if>
-            <if test="priority != null">
-                AND priority = #{priority, jdbcType=INTEGER}
-            </if>
             <if test="reviewerUserId != null">
                 AND reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT}
             </if>
@@ -452,9 +433,6 @@
             </if>
             <if test="faqAnswer != null">
                 AND faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR}
-            </if>
-            <if test="tagsJson != null">
-                AND tags_json = #{tagsJson, jdbcType=LONGVARCHAR}
             </if>
             <!-- 过滤已删除的记录 -->
             AND (delete_flag = 0 OR delete_flag IS NULL)
@@ -475,7 +453,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, priority, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer, tags_json,
+        organ_id, knowledge_id, revision_no, source_type, revision_status, source_file_name, source_content_type, source_storage_path, source_sha256, source_file_size, parser_name, parser_version, parser_task_id, parsed_storage_path, chunk_count, index_status, embedding_profile, embedding_model, index_completed_time, reviewer_user_id, review_time, review_comment, create_user_id, faq_question, faq_answer,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -488,7 +466,7 @@
             <!-- 基础字段值 -->
             #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
             <!-- 业务字段值 -->
-            #{item.organId, jdbcType=BIGINT}, #{item.knowledgeId, jdbcType=BIGINT}, #{item.revisionNo, jdbcType=VARCHAR}, #{item.sourceType, jdbcType=VARCHAR}, #{item.revisionStatus, jdbcType=VARCHAR}, #{item.sourceFileName, jdbcType=VARCHAR}, #{item.sourceContentType, jdbcType=VARCHAR}, #{item.sourceStoragePath, jdbcType=VARCHAR}, #{item.sourceSha256, jdbcType=CHAR}, #{item.sourceFileSize, jdbcType=BIGINT}, #{item.parserName, jdbcType=VARCHAR}, #{item.parserVersion, jdbcType=VARCHAR}, #{item.parserTaskId, jdbcType=VARCHAR}, #{item.parsedStoragePath, jdbcType=VARCHAR}, #{item.chunkCount, jdbcType=INTEGER}, #{item.indexStatus, jdbcType=VARCHAR}, #{item.embeddingProfile, jdbcType=VARCHAR}, #{item.embeddingModel, jdbcType=VARCHAR}, #{item.indexCompletedTime, jdbcType=TIMESTAMP}, #{item.priority, jdbcType=INTEGER}, #{item.reviewerUserId, jdbcType=BIGINT}, #{item.reviewTime, jdbcType=TIMESTAMP}, #{item.reviewComment, jdbcType=VARCHAR}, #{item.createUserId, jdbcType=BIGINT}, #{item.faqQuestion, jdbcType=LONGVARCHAR}, #{item.faqAnswer, jdbcType=LONGVARCHAR}, #{item.tagsJson, jdbcType=LONGVARCHAR},
+            #{item.organId, jdbcType=BIGINT}, #{item.knowledgeId, jdbcType=BIGINT}, #{item.revisionNo, jdbcType=VARCHAR}, #{item.sourceType, jdbcType=VARCHAR}, #{item.revisionStatus, jdbcType=VARCHAR}, #{item.sourceFileName, jdbcType=VARCHAR}, #{item.sourceContentType, jdbcType=VARCHAR}, #{item.sourceStoragePath, jdbcType=VARCHAR}, #{item.sourceSha256, jdbcType=CHAR}, #{item.sourceFileSize, jdbcType=BIGINT}, #{item.parserName, jdbcType=VARCHAR}, #{item.parserVersion, jdbcType=VARCHAR}, #{item.parserTaskId, jdbcType=VARCHAR}, #{item.parsedStoragePath, jdbcType=VARCHAR}, #{item.chunkCount, jdbcType=INTEGER}, #{item.indexStatus, jdbcType=VARCHAR}, #{item.embeddingProfile, jdbcType=VARCHAR}, #{item.embeddingModel, jdbcType=VARCHAR}, #{item.indexCompletedTime, jdbcType=TIMESTAMP}, #{item.reviewerUserId, jdbcType=BIGINT}, #{item.reviewTime, jdbcType=TIMESTAMP}, #{item.reviewComment, jdbcType=VARCHAR}, #{item.createUserId, jdbcType=BIGINT}, #{item.faqQuestion, jdbcType=LONGVARCHAR}, #{item.faqAnswer, jdbcType=LONGVARCHAR},
             <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
             0,
             <!-- version字段值（如果存在，设置默认值为0） -->
@@ -568,9 +546,6 @@
             <if test="indexCompletedTime != null">
                 index_completed_time = #{indexCompletedTime, jdbcType=TIMESTAMP},
             </if>
-            <if test="priority != null">
-                priority = #{priority, jdbcType=INTEGER},
-            </if>
             <if test="reviewerUserId != null">
                 reviewer_user_id = #{reviewerUserId, jdbcType=BIGINT},
             </if>
@@ -588,9 +563,6 @@
             </if>
             <if test="faqAnswer != null">
                 faq_answer = #{faqAnswer, jdbcType=LONGVARCHAR},
-            </if>
-            <if test="tagsJson != null">
-                tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
             </if>
             <!-- version字段更新（乐观锁版本号自增） -->
             version = version + 1

@@ -39,7 +39,7 @@ public class KnowledgeTagPolicy {
     }
 
     /**
-     * Parses revision {@code tagsJson}. {@code null} or blank (including {@code ""}) becomes empty list.
+     * Parses item {@code tagsJson}. {@code null} or blank (including {@code ""}) becomes empty list.
      */
     public List<String> parseTagsJson(String tagsJson) {
         if (Objects.isNull(tagsJson) || tagsJson.isBlank()) {

@@ -31,7 +31,7 @@ DEPRECATED ─回滚恢复→ PUBLISHED
 创建 knowledge_item
   → 创建 DRAFT revision
   → 受控保存文件或 FAQ 内容
-  → 运营确认原文与 tags_json 并审核
+  → 运营确认原文与主题标签/优先级并审核
   → 创建 PROCESS 任务
   → Docling + HybridChunker + Embedding
   → 创建 chunk 清单

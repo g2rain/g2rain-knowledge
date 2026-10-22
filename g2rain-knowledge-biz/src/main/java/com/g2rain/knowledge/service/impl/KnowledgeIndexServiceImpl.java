@@ -9,8 +9,10 @@ import com.g2rain.knowledge.client.model.EmbeddingClient;
 import com.g2rain.knowledge.client.model.EmbeddingProperties;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
 import com.g2rain.knowledge.dao.KnowledgeChunkDao;
+import com.g2rain.knowledge.dao.KnowledgeItemDao;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
 import com.g2rain.knowledge.dao.po.KnowledgeChunkPo;
+import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.dto.KnowledgeChunkSelectDto;
 import com.g2rain.knowledge.service.KnowledgeIndexService;
@@ -24,6 +26,7 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
     private static final JsonCodec JSON = JsonCodecFactory.instance();
 
     @Resource private KnowledgeRevisionDao knowledgeRevisionDao;
+    @Resource private KnowledgeItemDao knowledgeItemDao;
     @Resource private KnowledgeChunkDao knowledgeChunkDao;
     @Resource private KnowledgeStorageClient knowledgeStorageClient;
     @Resource private EmbeddingClient embeddingClient;
@@ -33,12 +36,13 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
 
     @Override public void index(Long revisionId) {
         KnowledgeRevisionPo revision = knowledgeRevisionDao.selectById(revisionId);
+        KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
         KnowledgeChunkSelectDto query = new KnowledgeChunkSelectDto(); query.setRevisionId(revisionId);
         List<KnowledgeChunkPo> chunks = knowledgeChunkDao.selectList(query);
         List<String> contents = chunks.stream().map(c -> knowledgeStorageClient.readParsedChunk(revision.getParsedStoragePath(), c.getSourceLocator())).toList();
         List<float[]> vectors = embeddingClient.embed(contents);
         milvusKnowledgeClient.validateSchema(milvusProperties.getCollectionName(), vectors.getFirst().length);
-        List<String> tags = tags(revision.getTagsJson());
+        List<String> tags = tags(item == null ? null : item.getTagsJson());
         String embeddingProfile = embeddingProperties.getModelName() + "-" + embeddingProperties.getDimension();
         List<MilvusIndexEntity> entities = java.util.stream.IntStream.range(0, chunks.size()).mapToObj(i -> {
             KnowledgeChunkPo c = chunks.get(i);
@@ -60,7 +64,7 @@ public class KnowledgeIndexServiceImpl implements KnowledgeIndexService {
             List<String> tags = JSON.str2obj(tagsJson, List.class, String.class);
             return tags == null ? List.of() : List.copyOf(tags);
         } catch (Exception exception) {
-            throw new IllegalArgumentException("invalid revision tags", exception);
+            throw new IllegalArgumentException("invalid item tags", exception);
         }
     }
 }
