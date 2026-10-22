@@ -19,14 +19,6 @@ G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、
 
 维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
 
-## v1.0.0 稳定版
-
-维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
-
-## v1.0.0 稳定版
-
-维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
-
 ## 当前能力
 
 - 知识文件与 FAQ 的接收、版本、标签、审核、发布、回滚和审计；
