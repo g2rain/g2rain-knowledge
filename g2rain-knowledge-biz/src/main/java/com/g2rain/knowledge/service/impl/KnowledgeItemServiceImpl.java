@@ -265,7 +265,8 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             }
             Integer priority = row.priority() != null ? row.priority() : Objects.requireNonNullElse(options.getPriority(), 0);
             Long knowledgeId = createTopic(row.knowledgeKey(), row.knowledgeName(), "DOCUMENT",
-                options.getCategoryId(), row.description(), options.getTags(), priority);
+                resolveCategoryId(row.categoryCode(), options.getCategoryId()), row.description(),
+                resolveTags(row.tags(), options.getTags()), priority);
             Long revisionId = createDraft(knowledgeId, "FILE");
             return success(item, knowledgeId, revisionId);
         } catch (BusinessException exception) {
@@ -288,7 +289,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             }
             Integer priority = row.priority() != null ? row.priority() : Objects.requireNonNullElse(options.getPriority(), 0);
             Long knowledgeId = createTopic(row.knowledgeKey(), row.knowledgeName(), "FAQ",
-                options.getCategoryId(), row.description(), options.getTags(), priority);
+                resolveCategoryId(row.categoryCode(), options.getCategoryId()), row.description(), options.getTags(), priority);
             Long revisionId = createDraft(knowledgeId, "FAQ");
             KnowledgeRevisionPo revision = requireRevision(revisionId);
             KnowledgeFaqEditDto faq = new KnowledgeFaqEditDto();
@@ -415,6 +416,8 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             int nameIdx = headers.indexOf("knowledge_name");
             int descriptionIdx = headers.indexOf("description");
             int priorityIdx = headers.indexOf("priority");
+            int tagsIdx = headers.indexOf("tags");
+            int categoryCodeIdx = headers.indexOf("category_code");
             if (keyIdx < 0 || nameIdx < 0) {
                 throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
             }
@@ -428,7 +431,9 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
                     cell(cols, keyIdx),
                     cell(cols, nameIdx),
                     descriptionIdx >= 0 ? cell(cols, descriptionIdx) : null,
-                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null)
+                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null),
+                    tagsIdx >= 0 ? parseTags(cell(cols, tagsIdx)) : null,
+                    categoryCodeIdx >= 0 ? blankToNull(cell(cols, categoryCodeIdx)) : null
                 ));
             }
         }
@@ -452,6 +457,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             int answerIdx = headers.indexOf("faq_answer");
             int descriptionIdx = headers.indexOf("description");
             int priorityIdx = headers.indexOf("priority");
+            int categoryCodeIdx = headers.indexOf("category_code");
             if (keyIdx < 0 || nameIdx < 0 || questionIdx < 0 || answerIdx < 0) {
                 throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
             }
@@ -467,7 +473,8 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
                     cell(cols, questionIdx),
                     cell(cols, answerIdx),
                     descriptionIdx >= 0 ? cell(cols, descriptionIdx) : null,
-                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null)
+                    parsePriority(priorityIdx >= 0 ? cell(cols, priorityIdx) : null),
+                    categoryCodeIdx >= 0 ? blankToNull(cell(cols, categoryCodeIdx)) : null
                 ));
             }
         }
@@ -483,6 +490,42 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         } catch (NumberFormatException exception) {
             throw new BusinessException(KnowledgeErrorCode.IMPORT_FILE_INVALID);
         }
+    }
+
+    /**
+     * CSV tags cell: semicolon / pipe / comma separated tag_code list.
+     */
+    private static List<String> parseTags(String raw) {
+        if (isBlank(raw)) {
+            return List.of();
+        }
+        List<String> tags = new ArrayList<>();
+        for (String part : raw.split("[;|,]")) {
+            String code = part.trim();
+            if (!code.isEmpty()) {
+                tags.add(code);
+            }
+        }
+        return tags;
+    }
+
+    private static List<String> resolveTags(List<String> rowTags, List<String> optionTags) {
+        if (rowTags != null && !rowTags.isEmpty()) {
+            return rowTags;
+        }
+        return optionTags;
+    }
+
+    private Long resolveCategoryId(String categoryCode, Long optionCategoryId) {
+        if (!isBlank(categoryCode)) {
+            return knowledgeSaveSupport.requireActiveCategoryIdByCode(
+                knowledgeAccessService.requireOrganId(), categoryCode);
+        }
+        return optionCategoryId;
+    }
+
+    private static String blankToNull(String value) {
+        return isBlank(value) ? null : value.trim();
     }
 
     private static String cell(List<String> cols, int index) {
@@ -589,10 +632,11 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         return Objects.isNull(value) || value.isBlank();
     }
 
-    private record ItemRow(String knowledgeKey, String knowledgeName, String description, Integer priority) {
+    private record ItemRow(String knowledgeKey, String knowledgeName, String description, Integer priority,
+                           List<String> tags, String categoryCode) {
     }
 
     private record FaqRow(String knowledgeKey, String knowledgeName, String question, String answer,
-                          String description, Integer priority) {
+                          String description, Integer priority, String categoryCode) {
     }
 }

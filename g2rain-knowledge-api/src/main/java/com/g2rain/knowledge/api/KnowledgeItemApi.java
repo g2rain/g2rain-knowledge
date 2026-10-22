@@ -48,7 +48,7 @@ public interface KnowledgeItemApi {
     Result<PageData<KnowledgeItemVo>> selectPage(PageSelectListDto<KnowledgeItemSelectDto> selectDto);
 
     @PostMapping(value = "/import/items", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "批量导入主题 CSV", description = "CSV 创建 DOCUMENT 主题与空 FILE 草稿；knowledge_key 已存在则跳过")
+    @Operation(summary = "批量导入主题 CSV", description = "CSV 创建 DOCUMENT 主题与空 FILE 草稿；可选列 tags（分号分隔 tag_code，行级优先于表单 tags）；knowledge_key 已存在则跳过")
     Result<KnowledgeImportResultVo> importItems(KnowledgeImportOptionsDto options,
                                                 @RequestParam("file") MultipartFile file);
 

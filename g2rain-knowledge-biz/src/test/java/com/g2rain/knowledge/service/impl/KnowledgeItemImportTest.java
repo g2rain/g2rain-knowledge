@@ -58,17 +58,19 @@ class KnowledgeItemImportTest {
     void importItemsCreatesDocumentAndFileDraft() {
         when(knowledgeAccessService.requireOrganId()).thenReturn(1L);
         when(knowledgeItemDao.selectList(any())).thenReturn(List.of());
+        when(knowledgeSaveSupport.requireActiveCategoryIdByCode(1L, "knowledge")).thenReturn(88L);
         when(knowledgeDraftService.createKnowledge(any(KnowledgeCreateDto.class))).thenReturn(11L);
         when(knowledgeDraftService.createDraft(any(KnowledgeDraftCreateDto.class))).thenReturn(22L);
 
         String csv = """
-            knowledge_key,knowledge_name,description,priority
-            policy_doc,Policy Doc,desc,3
+            knowledge_key,knowledge_name,description,priority,tags,category_code
+            policy_doc,Policy Doc,desc,3,g2rain;policy,knowledge
             """;
         MockMultipartFile file = new MockMultipartFile("file", "items.csv", "text/csv",
             csv.getBytes(StandardCharsets.UTF_8));
         KnowledgeImportOptionsDto options = new KnowledgeImportOptionsDto();
-        options.setTags(List.of("policy"));
+        options.setTags(List.of("ignored_form_tag"));
+        options.setCategoryId(99L);
 
         KnowledgeImportResultVo result = service.importItems(options, file);
 
@@ -78,7 +80,8 @@ class KnowledgeItemImportTest {
         assertEquals("policy_doc", createCaptor.getValue().getKnowledgeKey());
         assertEquals("DOCUMENT", createCaptor.getValue().getKnowledgeType());
         assertEquals(3, createCaptor.getValue().getPriority());
-        assertEquals(List.of("policy"), createCaptor.getValue().getTags());
+        assertEquals(List.of("g2rain", "policy"), createCaptor.getValue().getTags());
+        assertEquals(88L, createCaptor.getValue().getCategoryId());
         ArgumentCaptor<KnowledgeDraftCreateDto> draftCaptor = ArgumentCaptor.forClass(KnowledgeDraftCreateDto.class);
         verify(knowledgeDraftService).createDraft(draftCaptor.capture());
         assertEquals("FILE", draftCaptor.getValue().getSourceType());
