@@ -116,4 +116,10 @@ public interface KnowledgeChunkDao {
      * Marks all chunks of a revision as INDEXED after Milvus staged upsert succeeds.
      */
     int markIndexedByRevisionId(@Param("revisionId") Long revisionId, @Param("updateTime") LocalDateTime updateTime);
+
+    /**
+     * Physically removes all chunks for a revision so PROCESS retry can re-insert
+     * without colliding on uk_organ_revision_chunk_del (includes delete_flag).
+     */
+    int deletePhysicalByRevisionId(@Param("revisionId") Long revisionId);
 }
