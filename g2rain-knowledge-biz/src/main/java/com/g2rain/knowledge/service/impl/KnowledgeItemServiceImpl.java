@@ -43,15 +43,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -63,8 +70,9 @@ import java.util.regex.Pattern;
 @Service(value = "knowledgeItemServiceImpl")
 public class KnowledgeItemServiceImpl implements KnowledgeItemService {
 
-    private static final String IMPORT_REVISION_NO = "v1";
     private static final Pattern KNOWLEDGE_KEY_PATTERN = Pattern.compile("[a-z][a-z0-9_]*");
+    private static final Pattern REVISION_NO_VN = Pattern.compile("^v(\\d+)$", Pattern.CASE_INSENSITIVE);
+    private static final DateTimeFormatter REVISION_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_SKIPPED = "SKIPPED";
     private static final String STATUS_FAILED = "FAILED";
@@ -322,12 +330,17 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
                 return failed(item, KnowledgeErrorCode.IMPORT_ITEM_NOT_FOUND,
                     KnowledgeErrorCode.IMPORT_ITEM_NOT_FOUND.messageTemplate());
             }
+            byte[] bytes = file.getBytes();
+            String contentSha256 = sha256Hex(bytes);
+            KnowledgeRevisionPo current = findLatestFileRevision(existing.getId());
+            if (current != null && contentSha256.equalsIgnoreCase(current.getSourceSha256())) {
+                return skipped(item, "source content unchanged (same SHA-256 as current " + current.getRevisionNo() + ")");
+            }
             Long revisionId = findOrCreateFileDraft(existing.getId());
             KnowledgeRevisionPo revision = requireRevision(revisionId);
             SourceMetadata metadata = new SourceMetadata(originalName, file.getContentType(), file.getSize());
-            try (InputStream content = file.getInputStream()) {
-                knowledgeDraftService.replaceFile(revisionId, revision.getVersion(), content, metadata);
-            }
+            knowledgeDraftService.replaceFile(revisionId, revision.getVersion(),
+                new ByteArrayInputStream(bytes), metadata);
             maybeSubmitReview(options, revisionId);
             return success(item, existing.getId(), revisionId);
         } catch (BusinessException exception) {
@@ -353,7 +366,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
     private Long createDraft(Long knowledgeId, String sourceType) {
         KnowledgeDraftCreateDto draft = new KnowledgeDraftCreateDto();
         draft.setKnowledgeId(knowledgeId);
-        draft.setRevisionNo(IMPORT_REVISION_NO);
+        draft.setRevisionNo(nextRevisionNo(knowledgeId));
         draft.setSourceType(sourceType);
         return knowledgeDraftService.createDraft(draft);
     }
@@ -368,6 +381,53 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             return drafts.getFirst().getId();
         }
         return createDraft(knowledgeId, "FILE");
+    }
+
+    /**
+     * Next revision_no for a topic: {@code v1}, {@code v2}, … when existing numbers follow that pattern;
+     * otherwise a millisecond timestamp to avoid unique-key collisions.
+     */
+    private String nextRevisionNo(Long knowledgeId) {
+        KnowledgeRevisionSelectDto query = new KnowledgeRevisionSelectDto();
+        query.setKnowledgeId(knowledgeId);
+        List<KnowledgeRevisionPo> revisions = knowledgeRevisionDao.selectList(query);
+        if (revisions.isEmpty()) {
+            return "v1";
+        }
+        int maxVn = 0;
+        boolean hasVn = false;
+        for (KnowledgeRevisionPo revision : revisions) {
+            if (revision.getRevisionNo() == null) {
+                continue;
+            }
+            Matcher matcher = REVISION_NO_VN.matcher(revision.getRevisionNo().trim());
+            if (matcher.matches()) {
+                hasVn = true;
+                maxVn = Math.max(maxVn, Integer.parseInt(matcher.group(1)));
+            }
+        }
+        if (hasVn) {
+            return "v" + (maxVn + 1);
+        }
+        return Moments.now().format(REVISION_TS);
+    }
+
+    /** Latest FILE revision for the topic (by id); used only to compare against current content. */
+    private KnowledgeRevisionPo findLatestFileRevision(Long knowledgeId) {
+        KnowledgeRevisionSelectDto query = new KnowledgeRevisionSelectDto();
+        query.setKnowledgeId(knowledgeId);
+        query.setSourceType("FILE");
+        return knowledgeRevisionDao.selectList(query).stream()
+            .max(Comparator.comparing(KnowledgeRevisionPo::getId, Comparator.nullsLast(Long::compareTo)))
+            .orElse(null);
+    }
+
+    private static String sha256Hex(byte[] content) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 unavailable", exception);
+        }
     }
 
     private void maybeSubmitReview(KnowledgeImportOptionsDto options, Long revisionId) {

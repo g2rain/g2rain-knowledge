@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -202,7 +203,8 @@ class KnowledgeItemImportTest {
         KnowledgeRevisionPo draft = new KnowledgeRevisionPo();
         draft.setId(22L);
         draft.setVersion(0);
-        when(knowledgeRevisionDao.selectList(any())).thenReturn(List.of(draft));
+        // first selectList: sha256 lookup (FILE); second: find DRAFT
+        when(knowledgeRevisionDao.selectList(any())).thenReturn(List.of(), List.of(draft));
         when(knowledgeRevisionDao.selectById(22L)).thenReturn(draft);
 
         MockMultipartFile file = new MockMultipartFile("files", "policy_doc.md", "text/markdown",
@@ -216,6 +218,100 @@ class KnowledgeItemImportTest {
         verify(knowledgeDraftService, never()).createKnowledge(any());
         verify(knowledgeDraftService).replaceFile(eq(22L), eq(0), any(), any());
         verify(knowledgeReviewService, never()).submit(any());
+    }
+
+    @Test
+    void importFilesSkipsWhenCurrentRevisionSha256Unchanged() throws Exception {
+        when(knowledgeAccessService.requireOrganId()).thenReturn(1L);
+        KnowledgeItemPo existing = new KnowledgeItemPo();
+        existing.setId(11L);
+        existing.setKnowledgeKey("policy_doc");
+        when(knowledgeItemDao.selectList(any())).thenReturn(List.of(existing));
+        byte[] content = "# hello".getBytes(StandardCharsets.UTF_8);
+        String sha256 = HexFormat.of().formatHex(
+            java.security.MessageDigest.getInstance("SHA-256").digest(content));
+        KnowledgeRevisionPo published = new KnowledgeRevisionPo();
+        published.setId(21L);
+        published.setRevisionNo("v1");
+        published.setSourceSha256(sha256);
+        when(knowledgeRevisionDao.selectList(any())).thenReturn(List.of(published));
+
+        MockMultipartFile file = new MockMultipartFile("files", "policy_doc.md", "text/markdown", content);
+
+        KnowledgeImportResultVo result = service.importFiles(new KnowledgeImportOptionsDto(), List.of(file));
+
+        assertEquals(1, result.getSkippedCount());
+        assertEquals("SKIPPED", result.getItems().getFirst().getItemStatus());
+        verify(knowledgeDraftService, never()).replaceFile(any(), any(), any(), any());
+        verify(knowledgeDraftService, never()).createDraft(any());
+    }
+
+    @Test
+    void importFilesAllowsUploadWhenOnlyOlderRevisionHasSameSha256() throws Exception {
+        when(knowledgeAccessService.requireOrganId()).thenReturn(1L);
+        KnowledgeItemPo existing = new KnowledgeItemPo();
+        existing.setId(11L);
+        existing.setKnowledgeKey("policy_doc");
+        when(knowledgeItemDao.selectList(any())).thenReturn(List.of(existing));
+        byte[] oldContent = "# hello-v1".getBytes(StandardCharsets.UTF_8);
+        String oldSha256 = HexFormat.of().formatHex(
+            java.security.MessageDigest.getInstance("SHA-256").digest(oldContent));
+        KnowledgeRevisionPo v1 = new KnowledgeRevisionPo();
+        v1.setId(21L);
+        v1.setRevisionNo("v1");
+        v1.setSourceSha256(oldSha256);
+        KnowledgeRevisionPo v2 = new KnowledgeRevisionPo();
+        v2.setId(22L);
+        v2.setRevisionNo("v2");
+        v2.setSourceSha256("different-sha");
+        // 1) latest FILE for sha check 2) draft lookup empty 3) nextRevisionNo
+        when(knowledgeRevisionDao.selectList(any()))
+            .thenReturn(List.of(v1, v2), List.of(), List.of(v1, v2));
+        when(knowledgeDraftService.createDraft(any(KnowledgeDraftCreateDto.class))).thenReturn(23L);
+        KnowledgeRevisionPo draft = new KnowledgeRevisionPo();
+        draft.setId(23L);
+        draft.setVersion(0);
+        when(knowledgeRevisionDao.selectById(23L)).thenReturn(draft);
+
+        MockMultipartFile file = new MockMultipartFile("files", "policy_doc.md", "text/markdown", oldContent);
+
+        KnowledgeImportResultVo result = service.importFiles(new KnowledgeImportOptionsDto(), List.of(file));
+
+        assertEquals(1, result.getSuccessCount());
+        verify(knowledgeDraftService).createDraft(any(KnowledgeDraftCreateDto.class));
+        verify(knowledgeDraftService).replaceFile(eq(23L), eq(0), any(), any());
+    }
+
+    @Test
+    void importFilesCreatesNextRevisionNoWhenNoDraft() throws Exception {
+        when(knowledgeAccessService.requireOrganId()).thenReturn(1L);
+        KnowledgeItemPo existing = new KnowledgeItemPo();
+        existing.setId(11L);
+        existing.setKnowledgeKey("policy_doc");
+        when(knowledgeItemDao.selectList(any())).thenReturn(List.of(existing));
+        KnowledgeRevisionPo published = new KnowledgeRevisionPo();
+        published.setId(21L);
+        published.setRevisionNo("v1");
+        published.setSourceSha256("abc");
+        // 1) sha256 lookup 2) draft lookup empty 3) nextRevisionNo list
+        when(knowledgeRevisionDao.selectList(any()))
+            .thenReturn(List.of(published), List.of(), List.of(published));
+        when(knowledgeDraftService.createDraft(any(KnowledgeDraftCreateDto.class))).thenReturn(22L);
+        KnowledgeRevisionPo draft = new KnowledgeRevisionPo();
+        draft.setId(22L);
+        draft.setVersion(0);
+        when(knowledgeRevisionDao.selectById(22L)).thenReturn(draft);
+
+        MockMultipartFile file = new MockMultipartFile("files", "policy_doc.md", "text/markdown",
+            "# hello-v2".getBytes(StandardCharsets.UTF_8));
+
+        KnowledgeImportResultVo result = service.importFiles(new KnowledgeImportOptionsDto(), List.of(file));
+
+        assertEquals(1, result.getSuccessCount());
+        ArgumentCaptor<KnowledgeDraftCreateDto> draftCaptor = ArgumentCaptor.forClass(KnowledgeDraftCreateDto.class);
+        verify(knowledgeDraftService).createDraft(draftCaptor.capture());
+        assertEquals("v2", draftCaptor.getValue().getRevisionNo());
+        verify(knowledgeDraftService).replaceFile(eq(22L), eq(0), any(), any());
     }
 
     @Test
