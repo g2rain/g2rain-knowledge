@@ -66,6 +66,15 @@ public class KnowledgeItemController implements KnowledgeItemApi {
 
     @Override
     @LoginGuard
+    @PostMapping(value = "/import/items", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<KnowledgeImportResultVo> importItems(
+        @ModelAttribute KnowledgeImportOptionsDto options,
+        @RequestParam("file") MultipartFile file) {
+        return Result.success(knowledgeItemService.importItems(options == null ? new KnowledgeImportOptionsDto() : options, file));
+    }
+
+    @Override
+    @LoginGuard
     @PostMapping(value = "/import/faq", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<KnowledgeImportResultVo> importFaq(
         @ModelAttribute KnowledgeImportOptionsDto options,

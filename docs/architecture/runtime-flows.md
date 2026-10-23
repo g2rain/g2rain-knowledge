@@ -13,7 +13,7 @@
 
 ## 人工发布与回滚
 
-1. 运营先审核原始文件或 FAQ 与 `tags_json`。审核通过后 revision 进入 `APPROVED`；此时才允许发起 `PROCESS` 任务。
+1. 运营先审核原始文件或 FAQ 与主题侧标签/优先级。审核通过后 revision 进入 `APPROVED`；此时才允许发起 `PROCESS` 任务。
 2. `PROCESS` 任务完成 Docling、切片、Embedding 与 Milvus staged 写入。它将版本 `tag_code` 数组同步到 Entity 的 `tags` ARRAY 字段，并以 `searchable = false` 写入；全字段对账通过后 revision 进入 `READY_TO_PUBLISH`（`index_status = INDEXED`）。
 3. 人工发布命令校验目标 revision、发布记录和二者的预期 `version`，先将目标 Entity 设为 `searchable = true` 并确认写入结果。
 4. 服务使用已有 release/revision 的乐观锁更新，在一个 MySQL 事务内切换 `active_revision_id`，将目标置为 `PUBLISHED`，并将被替换版本置为 `DEPRECATED`。

@@ -20,8 +20,8 @@ erDiagram
 | --- | --- |
 | `knowledge_category` | 组织级扁平运营分类字典；不承担权限、隔离或检索过滤 |
 | `knowledge_tag` | 组织级扁平标签字典；`organ_id + tag_code` 唯一；`tag_name` 仅展示；不承担权限或数据隔离 |
-| `knowledge_item` | 稳定知识主题，`organ_id + knowledge_key` 唯一 |
-| `knowledge_revision` | 文件或 FAQ 内容的版本、解析、索引和审核状态；保存 `tags_json`、`priority`、`embedding_profile` 与模型标识 |
+| `knowledge_item` | 稳定知识主题，`organ_id + knowledge_key` 唯一；保存 `tags_json`、`priority`、分类与启停 |
+| `knowledge_revision` | 文件或 FAQ 内容的版本、解析、索引和审核状态；保存 `embedding_profile` 与模型标识 |
 | `knowledge_chunk` | 本地解析 chunks 与 Milvus Entity 的可重建清单，不保存正文；本表 `id` 直接作为 Milvus `chunk_id` 主键，不维护第二套向量记录 ID |
 | `knowledge_task` | 可重试的知识处理任务；主路径为审核通过后的 `PROCESS`（解析、切片、Embedding、Milvus staged）；另有 `DELETE_INDEX`；不承载发布、回滚或下线 |
 | `knowledge_release` | 每个知识主题当前活动 revision 的唯一权威选择 |
@@ -38,10 +38,10 @@ Milvus 的 `searchable` 标量字段是 `knowledge_release.active_revision_id` �
 
 权威处理顺序为 `DRAFT → REVIEWING（人工审核原文/FAQ 与标签）→ APPROVED → PROCESS（解析、切片、Embedding、Milvus）→ READY_TO_PUBLISH → 人工同步发布`。审核只针对源内容，不审切片与向量中间产物；审核通过前不得写入 Milvus。DDL `revision_status` COMMENT 若仍列举旧状态词，以本页与业务流程为准，见 [DEV-001](deviations.md)。
 
-`embedding_profile` 记录该 revision 实际使用的向量配置键（首期如 `qwen-4096-v1`），与部署中的 collection / 维度一一对应；`embedding_model` 记录外部模型标识。`priority` 仅服务运营排序，不参与 Milvus 强制过滤。
+`embedding_profile` 记录该 revision 实际使用的向量配置键（首期如 `qwen-4096-v1`），与部署中的 collection / 维度一一对应；`embedding_model` 记录外部模型标识。主题侧 `priority` 仅服务运营排序，不参与 Milvus 强制过滤。
 
 ## 标签模型
 
 `knowledge_tag` 是组织级扁平标签字典。`tag_code` 是同一组织内的稳定业务键，创建后冻结，不得随展示名改写；`tag_name` 只用于运营端展示。标签是唯一的业务分类与检索筛选机制；它不承担租户隔离或权限职责，这些系统边界仍由 `organ_id`、发布状态和检索服务控制。
 
-首版不建立 `knowledge_revision_tag` 关联表。运营端选择标签时，将 `tag_code` 数组写入 `knowledge_revision.tags_json`；`PROCESS` 任务将该数组同步至对应 Milvus Entity 的 `tags` ARRAY 字段，并建立 INVERTED 标量索引。字典改展示名或停用不直接改写历史版本的 code 快照；需要增减已发布知识的标签时，应创建新 revision 并重新发布。
+首版不建立标签关联表。运营端选择标签时，将 `tag_code` 数组写入 `knowledge_item.tags_json`；`PROCESS`/`INDEX` 从主题读取并同步至对应 Milvus Entity 的 `tags` ARRAY 字段。改已发布主题标签后需重新 PROCESS 才会更新向量侧。

@@ -7,6 +7,7 @@ import com.g2rain.knowledge.dao.KnowledgeItemDao;
 import com.g2rain.knowledge.dao.po.KnowledgeCategoryPo;
 import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.domain.KnowledgeTagPolicy;
+import com.g2rain.knowledge.dto.KnowledgeCategorySelectDto;
 import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeSourceType;
@@ -40,6 +41,24 @@ public class KnowledgeSaveSupport {
             || !KnowledgeEnablementStatus.ACTIVE.name().equals(category.getStatus())) {
             throw new BusinessException(KnowledgeErrorCode.CATEGORY_NOT_AVAILABLE);
         }
+    }
+
+    /**
+     * Resolves an ACTIVE category by {@code category_code} within the organ.
+     */
+    public Long requireActiveCategoryIdByCode(Long organId, String categoryCode) {
+        if (Objects.isNull(categoryCode) || categoryCode.isBlank()) {
+            return null;
+        }
+        KnowledgeCategorySelectDto query = new KnowledgeCategorySelectDto();
+        query.setOrganId(organId);
+        query.setCategoryCode(categoryCode.trim());
+        query.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
+        List<KnowledgeCategoryPo> found = knowledgeCategoryDao.selectList(query);
+        if (found.isEmpty()) {
+            throw new BusinessException(KnowledgeErrorCode.CATEGORY_NOT_AVAILABLE);
+        }
+        return found.getFirst().getId();
     }
 
     public KnowledgeItemPo requireActiveItem(Long knowledgeId, Long organId) {

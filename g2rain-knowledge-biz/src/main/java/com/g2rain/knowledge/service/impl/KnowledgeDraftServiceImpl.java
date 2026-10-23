@@ -76,6 +76,8 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         item.setKnowledgeType(dto.getKnowledgeType());
         item.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
         item.setDescription(dto.getDescription());
+        item.setPriority(Objects.requireNonNullElse(dto.getPriority(), 0));
+        item.setTagsJson(knowledgeTagPolicy.asJson(knowledgeTagGovernanceService.validateDraftTags(dto.getTags())));
         item.setCreateUserId(knowledgeAccessService.requireUserId());
         item.setCreateTime(now);
         item.setUpdateTime(now);
@@ -101,8 +103,6 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         revision.setRevisionStatus(KnowledgeRevisionStatus.DRAFT.name());
         revision.setChunkCount(0);
         revision.setIndexStatus(PENDING);
-        revision.setPriority(Objects.requireNonNullElse(dto.getPriority(), 0));
-        revision.setTagsJson(knowledgeTagPolicy.asJson(knowledgeTagGovernanceService.validateDraftTags(dto.getTags())));
         revision.setCreateUserId(knowledgeAccessService.requireUserId());
         revision.setCreateTime(now);
         revision.setUpdateTime(now);
@@ -120,10 +120,6 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         KnowledgeRevisionPo update = new KnowledgeRevisionPo();
         update.setId(current.getId());
         update.setVersion(dto.getExpectedVersion());
-        update.setPriority(Objects.requireNonNullElse(dto.getPriority(), current.getPriority()));
-        if (Objects.nonNull(dto.getTags())) {
-            update.setTagsJson(knowledgeTagPolicy.asJson(knowledgeTagGovernanceService.validateDraftTags(dto.getTags())));
-        }
         update.setUpdateTime(Moments.now());
         if (knowledgeRevisionDao.updateByVersion(update) != 1) {
             throw new BusinessException(KnowledgeErrorCode.REVISION_VERSION_CONFLICT);

@@ -41,7 +41,7 @@
 | 分类 | 分类名称、编码及现有 DTO 支持的业务字段 | `organId`；省略状态时 `ACTIVE`；省略 `sortOrder` 时 `0` |
 | 标签 | 标签名称、编码、说明等业务字段 | `organId`；省略状态时 `ACTIVE`；省略 `sortOrder` 时 `0` |
 | 主题 | `knowledgeKey`、`knowledgeName`、`knowledgeType`；可选分类和说明 | `organId`、`createUserId`；省略 `status` 时 `ACTIVE` |
-| 版本 | `knowledgeId`、`revisionNo`、`sourceType`；可选 `priority`、`tagsJson`、FAQ 内容 | `organId`、`createUserId`；固定 `revisionStatus=DRAFT`、`chunkCount=0`、`indexStatus=PENDING`；省略 `priority` 时 `0`；省略标签时规范化为 `[]` |
+| 版本 | `knowledgeId`、`revisionNo`、`sourceType`；可选 FAQ 内容 | `organId`、`createUserId`；固定 `revisionStatus=DRAFT`、`chunkCount=0`、`indexStatus=PENDING`（`priority`/`tagsJson` 已迁至主题 Item，以现行 schema 为准） |
 | 发布选择 | `knowledgeId` | `organId`；固定 `releaseStatus=UNPUBLISHED`、`activeRevisionId=null`；发布人、发布时间和发布原因留空 |
 | 回复模板 | `templateCode`、`templateName`、`systemPrompt`；可选说明和状态 | `organId`；省略 `status` 时 `ACTIVE` |
 

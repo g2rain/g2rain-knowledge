@@ -21,7 +21,7 @@
 | 规则 | 说明 |
 | --- | --- |
 | 标签字典 | `knowledge_tag` 是组织内扁平字典。`tag_code` 创建时显式给出（小写字母、数字、下划线），创建后冻结；`tag_name` 可改。禁止空编码、空名称和重复有效 `tag_code`。 |
-| 版本快照 | revision 保存 `tags_json` 的 `tag_code` 数组，`PROCESS` 任务复制到 Milvus Entity 的 `tags` ARRAY 字段。字典改展示名或停用不追写历史 revision。 |
+| 主题标签 | item 保存 `tags_json` 的 `tag_code` 数组与 `priority`；`PROCESS`/`INDEX` 从 Item 复制 tags 到 Milvus Entity。改已发布主题标签后需重新 PROCESS 才会更新向量侧。 |
 | 停用 | 停用标签后不得再被新草稿选择；已有 revision 仍按其 code 快照检索，直到运营人员以新 revision 替换。 |
 | 删除 | 已被任何 revision 使用的标签不执行物理删除，只能停用或逻辑删除；未使用标签可逻辑删除。 |
 | 筛选语义 | `all_tags` / `any_tags` 传 `tag_code`。`all_tags` 必须全部命中，`any_tags` 至少命中一个；两组同时存在时取 AND。标签为空不限制业务范围。未知或停用 code 在新草稿选择时拒绝；**检索请求中未知 code 直接拒绝**（与接口契约及实现一致，不伪装为无证据）。 |

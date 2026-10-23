@@ -67,6 +67,18 @@ public class KnowledgeItemVo extends BaseVo {
     private String description;
 
     /**
+     * 运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤
+     */
+    @Schema(description = "运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤")
+    private Integer priority;
+
+    /**
+     * 主题已选标签编码数组，PROCESS/INDEX任务同步到Milvus Entity tags字段
+     */
+    @Schema(description = "主题已选标签编码数组，PROCESS/INDEX任务同步到Milvus Entity tags字段")
+    private String tagsJson;
+
+    /**
      * 创建用户标识
      */
     @Schema(description = "创建用户标识")

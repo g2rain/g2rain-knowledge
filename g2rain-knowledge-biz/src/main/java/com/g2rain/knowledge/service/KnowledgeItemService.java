@@ -52,12 +52,17 @@ public interface KnowledgeItemService {
     int delete(Long id);
 
     /**
+     * Batch-create DOCUMENT topics (+ empty FILE drafts) from a CSV file.
+     */
+    KnowledgeImportResultVo importItems(KnowledgeImportOptionsDto options, MultipartFile file);
+
+    /**
      * Batch-import FAQ topics from a CSV file.
      */
     KnowledgeImportResultVo importFaq(KnowledgeImportOptionsDto options, MultipartFile file);
 
     /**
-     * Batch-import DOCUMENT topics from source files (PDF / Markdown / HTML).
+     * Attach source files to existing DOCUMENT topics (PDF / Markdown / HTML).
      */
     KnowledgeImportResultVo importFiles(KnowledgeImportOptionsDto options, List<MultipartFile> files);
 }
