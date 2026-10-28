@@ -8,6 +8,7 @@ import com.g2rain.knowledge.domain.ChunkContent;
 import com.g2rain.knowledge.domain.ChunkingProfile;
 import com.g2rain.knowledge.domain.ChunkingResult;
 import com.g2rain.knowledge.domain.KnowledgeChunkPolicy;
+import com.g2rain.knowledge.domain.TitlePaths;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -224,7 +225,7 @@ public class DoclingServeClient implements DoclingClient {
             if (rawText.isBlank()) {
                 throw new BusinessException(KnowledgeErrorCode.DOCLING_INVALID_RESPONSE);
             }
-            String titlePath = joinHeadings(item.headings());
+            String titlePath = TitlePaths.toJson(item.headings());
             Integer pageStart = null;
             Integer pageEnd = null;
             if (item.pageNumbers() != null && !item.pageNumbers().isEmpty()) {
@@ -270,17 +271,6 @@ public class DoclingServeClient implements DoclingClient {
             }
         }
         return "";
-    }
-
-    private static String joinHeadings(List<String> headings) {
-        if (headings == null || headings.isEmpty()) {
-            return null;
-        }
-        List<String> cleaned = headings.stream()
-            .filter(h -> h != null && !h.isBlank())
-            .map(String::trim)
-            .toList();
-        return cleaned.isEmpty() ? null : String.join(" > ", cleaned);
     }
 
     private static String nullToEmpty(String value) {

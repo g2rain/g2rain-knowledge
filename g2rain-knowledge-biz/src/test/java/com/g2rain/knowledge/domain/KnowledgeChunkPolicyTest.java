@@ -32,12 +32,13 @@ class KnowledgeChunkPolicyTest {
         assertEquals(1, chunks.size());
         assertTrue(chunks.getFirst().rawText().contains("Q1"));
         assertTrue(chunks.getFirst().rawText().contains("短答"));
+        assertEquals("[\"Q1\"]", chunks.getFirst().titlePath());
         policy.validateManifest(chunks);
     }
 
     @Test
     void validateManifestRejectsBrokenSequence() {
-        ChunkContent ok = policy.build(1, "chunk:1", "a", "a", 1, 1, 1, "T");
+        ChunkContent ok = policy.build(1, "chunk:1", "a", "a", 1, 1, 1, "[\"T\"]");
         ChunkContent badNo = policy.build(3, "chunk:3", "b", "b", 1, null, null, null);
         assertThrows(BusinessException.class, () -> policy.validateManifest(List.of(ok, badNo)));
     }
