@@ -43,4 +43,16 @@ public class KnowledgeAccessServiceImpl implements KnowledgeAccessService {
             throw new BusinessException(SystemErrorCode.UNAUTHORIZED, "跨机构知识数据");
         }
     }
+
+    @Override
+    public boolean isAdminCompany() {
+        return PrincipalContextHolder.isAdminCompany();
+    }
+
+    @Override
+    public void requireAdminCompany() {
+        if (!isAdminCompany()) {
+            throw new BusinessException(SystemErrorCode.UNAUTHORIZED, "仅可信管理公司主体可维护公共知识");
+        }
+    }
 }

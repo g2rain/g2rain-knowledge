@@ -118,11 +118,6 @@ public class KnowledgeRevisionPo extends BasePo {
     private LocalDateTime indexCompletedTime;
 
     /**
-     * 运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤
-     */
-    private Integer priority;
-
-    /**
      * 审核用户标识
      */
     private Long reviewerUserId;
@@ -151,11 +146,6 @@ public class KnowledgeRevisionPo extends BasePo {
      * FAQ标准答案，仅FAQ来源使用
      */
     private String faqAnswer;
-
-    /**
-     * 版本已选标签编码数组，INDEX任务同步到Milvus Entity tags字段
-     */
-    private String tagsJson;
 
     /**
      * 删除标识[0:未删除, 1:已删除]

@@ -65,6 +65,12 @@ public class KnowledgeItemSelectDto extends BaseSelectListDto {
     private String description;
 
     /**
+     * 共享范围 PRIVATE/PUBLIC
+     */
+    @Schema(description = "共享范围 PRIVATE/PUBLIC")
+    private String visibility;
+
+    /**
      * 创建用户标识
      */
     @Schema(description = "创建用户标识")

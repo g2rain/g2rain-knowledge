@@ -10,7 +10,7 @@
 上传文件或编辑 FAQ
   → 创建草稿版本（DRAFT）
   → 写入受控本地存储
-  → 进入 REVIEWING；运营校验原文并确认 tags_json
+  → 进入 REVIEWING；运营校验原文并确认主题 tags/priority
   → 审核通过后由 PROCESS 任务调用 Docling、HybridChunker 与 Embedding API，并以 searchable=false 写入 Milvus
   → 索引对账完成，进入 READY_TO_PUBLISH
   → 运营人工发布：预启用目标 Entity，MySQL CAS 切换 active_revision_id，再关闭旧 Entity
@@ -39,7 +39,8 @@ MySQL 保存相对路径、SHA-256、文件大小和内容类型。用户输入�
 | --- | --- |
 | `knowledge_item` | 稳定知识主题，以 `organ_id + knowledge_key` 唯一 |
 | `knowledge_tag` | 组织级扁平标签字典，`organ_id + tag_code` 唯一；`tag_name` 仅展示 |
-| `knowledge_revision` | 文件或 FAQ 的版本、解析/索引状态、`priority`、`embedding_profile` 与 `tags_json` |
+| `knowledge_item` | 主题元数据，含 `priority` 与 `tags_json` |
+| `knowledge_revision` | 文件或 FAQ 的版本、解析/索引状态与 `embedding_profile` |
 | `knowledge_release` | 当前生产版本 `active_revision_id` |
 | `knowledge_answer_template` | 机构级回复模板，按 `template_code` 供知识问答选择 |
 | `knowledge_chunk` | 可重建切片清单：定位、页码、token、内容哈希与 Entity 主键 |

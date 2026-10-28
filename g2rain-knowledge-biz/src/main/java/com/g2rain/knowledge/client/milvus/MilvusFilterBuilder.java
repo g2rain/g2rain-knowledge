@@ -8,10 +8,18 @@ final class MilvusFilterBuilder {
     private MilvusFilterBuilder() {
     }
 
-    static String searchable(Long organId, List<String> allTagCodes, List<String> anyTagCodes) {
-        StringBuilder filter = new StringBuilder("organ_id == ").append(organId).append(" && searchable == true");
-        if (!allTagCodes.isEmpty()) filter.append(" && ARRAY_CONTAINS_ALL(tags, ").append(tags(allTagCodes)).append(')');
-        if (!anyTagCodes.isEmpty()) filter.append(" && ARRAY_CONTAINS_ANY(tags, ").append(tags(anyTagCodes)).append(')');
+    static String searchable(Long organId, boolean includePublic, List<String> allTagCodes, List<String> anyTagCodes) {
+        StringBuilder filter = new StringBuilder("searchable == true && (organ_id == ").append(organId);
+        if (includePublic) {
+            filter.append(" || visibility == \"PUBLIC\"");
+        }
+        filter.append(')');
+        if (!allTagCodes.isEmpty()) {
+            filter.append(" && ARRAY_CONTAINS_ALL(tags, ").append(tags(allTagCodes)).append(')');
+        }
+        if (!anyTagCodes.isEmpty()) {
+            filter.append(" && ARRAY_CONTAINS_ANY(tags, ").append(tags(anyTagCodes)).append(')');
+        }
         return filter.toString();
     }
 

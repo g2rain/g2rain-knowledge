@@ -78,6 +78,9 @@ CREATE TABLE `knowledge_item` (
     `knowledge_type` VARCHAR(32) NOT NULL COMMENT '知识类型[DOCUMENT:文档, FAQ:问答]',
     `status` VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态[ACTIVE:有效, INACTIVE:停用]',
     `description` VARCHAR(1024) NULL COMMENT '知识说明',
+    `priority` INT NOT NULL DEFAULT 0 COMMENT '运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤',
+    `tags_json` JSON NULL COMMENT '主题已选标签编码数组，PROCESS/INDEX任务同步到Milvus Entity tags字段',
+    `visibility` VARCHAR(16) NOT NULL DEFAULT 'PRIVATE' COMMENT '共享范围[PRIVATE:仅本机构, PUBLIC:公共知识]',
     `create_user_id` BIGINT NULL COMMENT '创建用户标识',
     `create_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -85,7 +88,8 @@ CREATE TABLE `knowledge_item` (
     `delete_flag` TINYINT NOT NULL DEFAULT 0 COMMENT '删除标识[0:未删除, 1:已删除]',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_organ_knowledge_key_del` (`organ_id`, `knowledge_key`, (IF(delete_flag = 0, 0, NULL))),
-    INDEX `idx_organ_category_type_status_del` (`organ_id`, `category_id`, `knowledge_type`, `status`, (IF(delete_flag = 0, 0, NULL)))
+    INDEX `idx_organ_category_type_status_del` (`organ_id`, `category_id`, `knowledge_type`, `status`, (IF(delete_flag = 0, 0, NULL))),
+    INDEX `idx_visibility_del` (`visibility`, (IF(delete_flag = 0, 0, NULL)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='知识主题表';
 
 -- =============================================
@@ -114,8 +118,6 @@ CREATE TABLE `knowledge_revision` (
     `embedding_profile` VARCHAR(64) NULL COMMENT '向量配置键，如 qwen-4096-v1；与 collection/维度对应，审核通过后写入',
     `embedding_model` VARCHAR(128) NULL COMMENT '外部向量模型标识',
     `index_completed_time` TIMESTAMP NULL COMMENT '索引完成时间',
-    `priority` INT NOT NULL DEFAULT 0 COMMENT '运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤',
-    `tags_json` JSON NULL COMMENT '版本已选标签编码数组，INDEX任务同步到Milvus Entity tags字段',
     `reviewer_user_id` BIGINT NULL COMMENT '审核用户标识',
     `review_time` TIMESTAMP NULL COMMENT '审核时间',
     `review_comment` VARCHAR(1024) NULL COMMENT '审核意见',

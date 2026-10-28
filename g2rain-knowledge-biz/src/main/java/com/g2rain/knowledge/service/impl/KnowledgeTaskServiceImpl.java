@@ -9,8 +9,10 @@ import com.g2rain.common.utils.Asserts;
 import com.g2rain.common.utils.Moments;
 import com.g2rain.common.validation.Validations;
 import com.g2rain.knowledge.converter.KnowledgeTaskConverter;
+import com.g2rain.knowledge.dao.KnowledgeItemDao;
 import com.g2rain.knowledge.dao.KnowledgeTaskDao;
 import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
+import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dao.po.KnowledgeTaskPo;
 import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.dto.KnowledgeTaskDto;
@@ -50,6 +52,8 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
     private KnowledgeTaskDao knowledgeTaskDao;
     @Resource(name = "knowledgeRevisionDao")
     private KnowledgeRevisionDao knowledgeRevisionDao;
+    @Resource(name = "knowledgeItemDao")
+    private KnowledgeItemDao knowledgeItemDao;
     @Resource
     private KnowledgeAccessService knowledgeAccessService;
     @Resource
@@ -123,9 +127,14 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
         if (!KnowledgeRevisionStatus.APPROVED.name().equals(revision.getRevisionStatus())) {
             throw new BusinessException(KnowledgeErrorCode.REVISION_NOT_REVIEWABLE);
         }
+        KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
+        if (item != null && "PUBLIC".equalsIgnoreCase(item.getVisibility())) {
+            knowledgeAccessService.requireAdminCompany();
+        }
+        String tagsJson = item == null ? null : item.getTagsJson();
         String inputVersion = revision.getSourceSha256() == null
-            ? Integer.toHexString(Objects.hash(revision.getFaqQuestion(), revision.getFaqAnswer(), revision.getTagsJson()))
-            : revision.getSourceSha256() + ':' + Integer.toHexString(Objects.hashCode(revision.getTagsJson()));
+            ? Integer.toHexString(Objects.hash(revision.getFaqQuestion(), revision.getFaqAnswer(), tagsJson))
+            : revision.getSourceSha256() + ':' + Integer.toHexString(Objects.hashCode(tagsJson));
         String key = "process:" + revisionId + ':' + inputVersion;
         KnowledgeTaskSelectDto query = new KnowledgeTaskSelectDto();
         query.setOrganId(knowledgeAccessService.requireOrganId());

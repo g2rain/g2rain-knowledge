@@ -15,8 +15,8 @@ DDL 位于 [`scripts/g2rain-knowledge.sql`](../../scripts/g2rain-knowledge.sql)�
 - 不建立数据库外键；跨表一致性由应用服务事务控制，并通过复合索引保证查询路径。
 - 含逻辑删除条件的索引使用 MySQL 函数键 `(IF(delete_flag = 0, 0, NULL))`，不将 `delete_flag` 作为普通索引列；因此要求 MySQL 8.0.13+。
 - 文件内容、解析正文和向量不进入 MySQL；只保存受控相对路径、内容哈希和索引定位信息。
-- `knowledge_category` 为首期扁平运营分类字典，不使用 `parent_id` 树结构；`knowledge_tag` 以 `tag_code` 为组织内唯一身份，`tag_name` 仅展示；版本已选标签以 `tag_code` 数组保存在 `knowledge_revision.tags_json`，首版不建立 `knowledge_revision_tag` 关联表。
-- `knowledge_revision.embedding_profile` 记录向量配置键；`priority` 仅用于运营排序，不作为 Milvus 过滤字段。
+- `knowledge_category` 为首期扁平运营分类字典，不使用 `parent_id` 树结构；`knowledge_tag` 以 `tag_code` 为组织内唯一身份，`tag_name` 仅展示；主题已选标签以 `tag_code` 数组保存在 `knowledge_item.tags_json`（已从 revision 迁出），首版不建立标签关联表。
+- `knowledge_revision.embedding_profile` 记录向量配置键；`knowledge_item.priority` 仅用于运营排序，不作为 Milvus 过滤字段。
 - `knowledge_chunk.id` 直接作为 Milvus Entity 的 `chunk_id` 主键，不维护冗余的向量记录 ID。
 - 所有 `knowledge_*` 表必须可被 `g2rain-generator-maven-plugin` 识别并生成基础 CRUD；`organ_id` 与 `delete_flag` 分别遵循生成器的隔离与逻辑删除规则。
 

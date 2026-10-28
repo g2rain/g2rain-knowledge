@@ -40,6 +40,7 @@ Milvus 使用显式 Schema，关闭动态业务字段。业务扩展通过 MySQL
 | `revision_id` | `INT64` | 修订定位和发布校验 |
 | `tags` | `ARRAY<VARCHAR>`，`max_capacity=64`，元素 `max_length=64` | 版本已选 `tag_code` 过滤 |
 | `searchable` | `BOOL` | 是否进入召回候选集 |
+| `visibility` | `VARCHAR` | 主题共享范围投影 `PRIVATE`/`PUBLIC`（RQ-008；MySQL 权威） |
 | `source_type` | `VARCHAR` | 来源类型 |
 | `content` | `VARCHAR` | chunk 文本，`max_length=65535` |
 | `title` | `VARCHAR` | 文档标题 |
@@ -55,18 +56,25 @@ Milvus 使用显式 Schema，关闭动态业务字段。业务扩展通过 MySQL
 ## 4. 索引设计
 
 - `content_vector`：HNSW + COSINE。
-- `organ_id`、`knowledge_id`、`revision_id`、`searchable`、`embedding_profile`：建立标量 `AUTOINDEX`。
+- `organ_id`、`knowledge_id`、`revision_id`、`searchable`、`visibility`、`embedding_profile`：建立标量 `AUTOINDEX`。
 - `tags`：建立 `INVERTED` 标量索引，支持 ARRAY 操作符过滤。
 - `M`、`efConstruction`、查询 `ef` 和召回数量由压测结果确定，不在首版文档中凭经验写死。
 
 ## 5. 标签过滤与检索
 
-所有检索必须先拼接系统过滤条件：
+所有检索必须先拼接系统过滤条件。本机构检索：
 
 ```text
 organ_id == <trusted_organ_id> && searchable == true
 ```
 
+`includePublic=true`（RQ-008）时：
+
+```text
+searchable == true && (organ_id == <trusted_organ_id> || visibility == "PUBLIC")
+```
+
+部署主路径：现有 collection **原地**增加 `visibility` 字段；存量回填 `PRIVATE` 后与 MySQL 对账，再开放跨机构公共召回。
 标签匹配语义：
 
 ```text

@@ -7,6 +7,7 @@
 - [项目事实与状态](project.yaml)
 - [Agent 工作约束](../AGENTS.md)
 - [需求入口](requirements/README.md)
+- [公共知识共享升级方案（RQ-008，待实施）](requirements/RQ-008-public-knowledge-sharing.md)
 
 ## 架构
 
@@ -24,6 +25,7 @@
 ## 契约与治理
 
 - [接口与集成契约](api/integration-contracts.md)
+- [Docling Serve HybridChunker 契约（v1.29）](api/docling-serve-chunk-v1.29.md)
 - [安全边界](security/security-boundaries.md)
 - [架构决策记录](decisions/README.md)
 - [社区与贡献](community.md)

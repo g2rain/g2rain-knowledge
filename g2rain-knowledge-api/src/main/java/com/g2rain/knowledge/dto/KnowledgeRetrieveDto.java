@@ -29,4 +29,7 @@ public class KnowledgeRetrieveDto extends BaseDto {
 
     @Schema(description = "期望返回的证据数，省略时使用服务默认值")
     private Integer topK;
+
+    @Schema(description = "是否包含跨机构公共知识；缺省/null/false 为否")
+    private Boolean includePublic;
 }

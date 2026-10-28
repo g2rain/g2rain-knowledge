@@ -139,12 +139,6 @@ public class KnowledgeRevisionSelectDto extends BaseSelectListDto {
     private LocalDateTime indexCompletedTime;
 
     /**
-     * 运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤
-     */
-    @Schema(description = "运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤")
-    private Integer priority;
-
-    /**
      * 审核用户标识
      */
     @Schema(description = "审核用户标识")
@@ -179,10 +173,4 @@ public class KnowledgeRevisionSelectDto extends BaseSelectListDto {
      */
     @Schema(description = "FAQ标准答案，仅FAQ来源使用")
     private String faqAnswer;
-
-    /**
-     * 版本已选标签编码数组，INDEX任务同步到Milvus Entity tags字段
-     */
-    @Schema(description = "版本已选标签编码数组，INDEX任务同步到Milvus Entity tags字段")
-    private String tagsJson;
 }

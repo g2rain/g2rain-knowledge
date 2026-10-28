@@ -5,7 +5,7 @@
 | 文档/规划名 | 实际环境变量 | 目的 | 安全要求 |
 | --- | --- | --- | --- |
 | `KNOWLEDGE_STORAGE_ROOT` | `KNOWLEDGE_STORAGE_ROOT` | 持久化文件根目录 | 只允许受控挂载路径 |
-| `DOCLING_BASE_URL` | `DOCLING_BASE_URL`（及可选 API Key） | Docling 内部服务 | 仅内部网络 |
+| `DOCLING_BASE_URL` | `DOCLING_BASE_URL`（及可选 `DOCLING_API_KEY`、超时、`DOCLING_CHUNKING_MAX_TOKENS`） | Docling HybridChunker | 仅内部网络 |
 | `MILVUS_URL` | **`MILVUS_URI`** | Milvus 地址 | 仅内部网络 |
 | `MILVUS_TOKEN` | `MILVUS_TOKEN` | Milvus 凭据 | Secret 注入 |
 | `MILVUS_COLLECTION` | **`KNOWLEDGE_MILVUS_COLLECTION`** | 当前 profile 的 collection | 不得由客户端指定 |

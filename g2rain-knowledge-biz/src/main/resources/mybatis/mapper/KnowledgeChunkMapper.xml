@@ -419,4 +419,9 @@
         UPDATE knowledge_chunk SET chunk_status = 'INDEXED', update_time = #{updateTime}, version = version + 1
         WHERE revision_id = #{revisionId} AND (delete_flag = 0 OR delete_flag IS NULL)
     </update>
+
+    <!-- PROCESS 重试需可重入：唯一键含 delete_flag，逻辑删除无法多次重跑，故物理清理 -->
+    <delete id="deletePhysicalByRevisionId">
+        DELETE FROM knowledge_chunk WHERE revision_id = #{revisionId}
+    </delete>
 </mapper>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.g2rain.knowledge.dao.domain.KnowledgePublicCatalogDomainDao">
+
+    <sql id="publicActiveJoin">
+        FROM knowledge_item i
+        INNER JOIN knowledge_release r
+            ON r.knowledge_id = i.id
+            AND r.organ_id = i.organ_id
+            AND (r.delete_flag = 0 OR r.delete_flag IS NULL)
+            AND r.release_status = 'PUBLISHED'
+            AND r.active_revision_id IS NOT NULL
+        INNER JOIN knowledge_revision v
+            ON v.id = r.active_revision_id
+            AND v.organ_id = i.organ_id
+            AND v.knowledge_id = i.id
+            AND (v.delete_flag = 0 OR v.delete_flag IS NULL)
+            AND v.revision_status = 'PUBLISHED'
+            AND v.index_status = 'INDEXED'
+        WHERE i.visibility = 'PUBLIC'
+          AND i.status = 'ACTIVE'
+          AND (i.delete_flag = 0 OR i.delete_flag IS NULL)
+          <if test="categoryId != null">
+              AND i.category_id = #{categoryId, jdbcType=BIGINT}
+          </if>
+          <if test="keyword != null and keyword != ''">
+              AND (i.knowledge_name LIKE CONCAT('%', #{keyword, jdbcType=VARCHAR}, '%')
+                OR i.description LIKE CONCAT('%', #{keyword, jdbcType=VARCHAR}, '%'))
+          </if>
+    </sql>
+
+    <select id="countPublic" resultType="long">
+        SELECT COUNT(1)
+        <include refid="publicActiveJoin"/>
+    </select>
+
+    <select id="selectPublicPage" resultType="com.g2rain.knowledge.dao.domain.KnowledgePublicCatalogRow">
+        SELECT
+            i.id AS knowledgeId,
+            i.organ_id AS organId,
+            i.category_id AS categoryId,
+            i.knowledge_key AS knowledgeKey,
+            i.knowledge_name AS knowledgeName,
+            i.knowledge_type AS knowledgeType,
+            i.description AS description,
+            i.visibility AS visibility,
+            r.active_revision_id AS activeRevisionId,
+            v.revision_no AS revisionNo
+        <include refid="publicActiveJoin"/>
+        ORDER BY i.update_time DESC, i.id DESC
+        LIMIT #{limit, jdbcType=INTEGER} OFFSET #{offset, jdbcType=INTEGER}
+    </select>
+
+    <select id="selectPublicCategories" resultType="com.g2rain.knowledge.dao.domain.KnowledgePublicCategoryRow">
+        SELECT
+            i.organ_id AS organId,
+            i.category_id AS categoryId,
+            c.category_name AS categoryName,
+            COUNT(1) AS knowledgeCount
+        FROM knowledge_item i
+        INNER JOIN knowledge_release r
+            ON r.knowledge_id = i.id
+            AND r.organ_id = i.organ_id
+            AND (r.delete_flag = 0 OR r.delete_flag IS NULL)
+            AND r.release_status = 'PUBLISHED'
+            AND r.active_revision_id IS NOT NULL
+        INNER JOIN knowledge_revision v
+            ON v.id = r.active_revision_id
+            AND v.organ_id = i.organ_id
+            AND v.knowledge_id = i.id
+            AND (v.delete_flag = 0 OR v.delete_flag IS NULL)
+            AND v.revision_status = 'PUBLISHED'
+            AND v.index_status = 'INDEXED'
+        LEFT JOIN knowledge_category c
+            ON c.id = i.category_id
+            AND c.organ_id = i.organ_id
+            AND (c.delete_flag = 0 OR c.delete_flag IS NULL)
+        WHERE i.visibility = 'PUBLIC'
+          AND i.status = 'ACTIVE'
+          AND (i.delete_flag = 0 OR i.delete_flag IS NULL)
+          AND i.category_id IS NOT NULL
+        GROUP BY i.organ_id, i.category_id, c.category_name
+        ORDER BY knowledgeCount DESC, i.category_id ASC
+    </select>
+</mapper>
