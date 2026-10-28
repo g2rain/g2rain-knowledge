@@ -20,6 +20,7 @@
         <result column="description" property="description" jdbcType="VARCHAR"/>
         <result column="priority" property="priority" jdbcType="INTEGER"/>
         <result column="tags_json" property="tagsJson" jdbcType="LONGVARCHAR"/>
+        <result column="visibility" property="visibility" jdbcType="VARCHAR"/>
         <result column="create_user_id" property="createUserId" jdbcType="BIGINT"/>
         <!-- deleteFlag字段（如果存在） -->
         <result column="delete_flag" property="deleteFlag" jdbcType="TINYINT"/>
@@ -88,6 +89,10 @@
                         tags_json
                         <include refid="directionClause"/>
                     </when>
+                    <when test="item.column == 'visibility'">
+                        visibility
+                        <include refid="directionClause"/>
+                    </when>
                     <when test="item.column == 'createUserId'">
                         create_user_id
                         <include refid="directionClause"/>
@@ -105,7 +110,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, create_user_id,
+        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, visibility, create_user_id,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -116,7 +121,7 @@
         <!-- 基础字段值 -->
         #{createTime, jdbcType=TIMESTAMP}, #{updateTime, jdbcType=TIMESTAMP},
         <!-- 业务字段值 -->
-        #{organId, jdbcType=BIGINT}, #{categoryId, jdbcType=BIGINT}, #{knowledgeKey, jdbcType=VARCHAR}, #{knowledgeName, jdbcType=VARCHAR}, #{knowledgeType, jdbcType=VARCHAR}, #{status, jdbcType=VARCHAR}, #{description, jdbcType=VARCHAR}, #{priority, jdbcType=INTEGER}, #{tagsJson, jdbcType=LONGVARCHAR}, #{createUserId, jdbcType=BIGINT},
+        #{organId, jdbcType=BIGINT}, #{categoryId, jdbcType=BIGINT}, #{knowledgeKey, jdbcType=VARCHAR}, #{knowledgeName, jdbcType=VARCHAR}, #{knowledgeType, jdbcType=VARCHAR}, #{status, jdbcType=VARCHAR}, #{description, jdbcType=VARCHAR}, #{priority, jdbcType=INTEGER}, #{tagsJson, jdbcType=LONGVARCHAR}, #{visibility, jdbcType=VARCHAR}, #{createUserId, jdbcType=BIGINT},
         <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
         0,
         <!-- version字段值（如果存在，设置默认值为0） -->
@@ -160,6 +165,9 @@
             <if test="tagsJson != null">
                 tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
             </if>
+            <if test="visibility != null">
+                visibility = #{visibility, jdbcType=VARCHAR},
+            </if>
             <if test="createUserId != null">
                 create_user_id = #{createUserId, jdbcType=BIGINT},
             </if>
@@ -177,7 +185,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, create_user_id,
+        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, visibility, create_user_id,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -196,7 +204,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, create_user_id,
+        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, visibility, create_user_id,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -260,6 +268,9 @@
             <if test="description != null">
                 AND description = #{description, jdbcType=VARCHAR}
             </if>
+            <if test="visibility != null">
+                AND visibility = #{visibility, jdbcType=VARCHAR}
+            </if>
             <if test="createUserId != null">
                 AND create_user_id = #{createUserId, jdbcType=BIGINT}
             </if>
@@ -282,7 +293,7 @@
         <!-- 基础字段 -->
         create_time, update_time,
         <!-- 业务字段 -->
-        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, create_user_id,
+        organ_id, category_id, knowledge_key, knowledge_name, knowledge_type, status, description, priority, tags_json, visibility, create_user_id,
         <!-- deleteFlag字段（如果存在） -->
         delete_flag,
         <!-- version字段（如果存在） -->
@@ -295,7 +306,7 @@
             <!-- 基础字段值 -->
             #{item.createTime, jdbcType=TIMESTAMP}, #{item.updateTime, jdbcType=TIMESTAMP},
             <!-- 业务字段值 -->
-            #{item.organId, jdbcType=BIGINT}, #{item.categoryId, jdbcType=BIGINT}, #{item.knowledgeKey, jdbcType=VARCHAR}, #{item.knowledgeName, jdbcType=VARCHAR}, #{item.knowledgeType, jdbcType=VARCHAR}, #{item.status, jdbcType=VARCHAR}, #{item.description, jdbcType=VARCHAR}, #{item.priority, jdbcType=INTEGER}, #{item.tagsJson, jdbcType=LONGVARCHAR}, #{item.createUserId, jdbcType=BIGINT},
+            #{item.organId, jdbcType=BIGINT}, #{item.categoryId, jdbcType=BIGINT}, #{item.knowledgeKey, jdbcType=VARCHAR}, #{item.knowledgeName, jdbcType=VARCHAR}, #{item.knowledgeType, jdbcType=VARCHAR}, #{item.status, jdbcType=VARCHAR}, #{item.description, jdbcType=VARCHAR}, #{item.priority, jdbcType=INTEGER}, #{item.tagsJson, jdbcType=LONGVARCHAR}, #{item.visibility, jdbcType=VARCHAR}, #{item.createUserId, jdbcType=BIGINT},
             <!-- deleteFlag字段值（如果存在，设置默认值为0） -->
             0,
             <!-- version字段值（如果存在，设置默认值为0） -->
@@ -344,6 +355,9 @@
             </if>
             <if test="tagsJson != null">
                 tags_json = #{tagsJson, jdbcType=LONGVARCHAR},
+            </if>
+            <if test="visibility != null">
+                visibility = #{visibility, jdbcType=VARCHAR},
             </if>
             <if test="createUserId != null">
                 create_user_id = #{createUserId, jdbcType=BIGINT},

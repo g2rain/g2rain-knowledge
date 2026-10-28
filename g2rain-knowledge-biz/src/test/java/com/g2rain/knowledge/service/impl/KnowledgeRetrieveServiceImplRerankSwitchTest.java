@@ -8,20 +8,10 @@ import com.g2rain.knowledge.client.model.KnowledgeRerankClient;
 import com.g2rain.knowledge.client.model.KnowledgeRerankProperties;
 import com.g2rain.knowledge.client.model.RerankScore;
 import com.g2rain.knowledge.client.retrieve.KnowledgeRetrieveProperties;
-import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
-import com.g2rain.knowledge.dao.KnowledgeChunkDao;
-import com.g2rain.knowledge.dao.KnowledgeItemDao;
-import com.g2rain.knowledge.dao.KnowledgeReleaseDao;
-import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
-import com.g2rain.knowledge.dao.po.KnowledgeChunkPo;
-import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
-import com.g2rain.knowledge.dao.po.KnowledgeReleasePo;
-import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
-import com.g2rain.knowledge.domain.ContentHashes;
 import com.g2rain.knowledge.dto.KnowledgeRetrieveDto;
-import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
-import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
+import com.g2rain.knowledge.service.KnowledgePublicEvidenceVerifier;
+import com.g2rain.knowledge.vo.KnowledgeEvidenceVo;
 import com.g2rain.knowledge.vo.KnowledgeRetrieveVo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,11 +21,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,11 +38,7 @@ import static org.mockito.Mockito.when;
 class KnowledgeRetrieveServiceImplRerankSwitchTest {
 
     @Mock private KnowledgeAccessService knowledgeAccessService;
-    @Mock private KnowledgeChunkDao knowledgeChunkDao;
-    @Mock private KnowledgeRevisionDao knowledgeRevisionDao;
-    @Mock private KnowledgeReleaseDao knowledgeReleaseDao;
-    @Mock private KnowledgeItemDao knowledgeItemDao;
-    @Mock private KnowledgeStorageClient knowledgeStorageClient;
+    @Mock private KnowledgePublicEvidenceVerifier knowledgePublicEvidenceVerifier;
     @Mock private EmbeddingClient embeddingClient;
     @Mock private KnowledgeRerankClient knowledgeRerankClient;
     @Mock private MilvusKnowledgeClient milvusKnowledgeClient;
@@ -65,13 +54,10 @@ class KnowledgeRetrieveServiceImplRerankSwitchTest {
         when(knowledgeAccessService.requireOrganId()).thenReturn(1L);
         when(embeddingClient.embed(anyList())).thenReturn(List.of(new float[] {0.1f}));
         when(milvusProperties.getCollectionName()).thenReturn("chunks");
-        when(milvusKnowledgeClient.search(anyString(), any(), any(), any(), any(), anyInt()))
+        when(milvusKnowledgeClient.search(anyString(), anyLong(), anyBoolean(), any(), any(), any(), anyInt()))
             .thenReturn(List.of(new MilvusSearchCandidate(11L, 0.4f)));
-        when(knowledgeChunkDao.selectById(11L)).thenReturn(chunk());
-        when(knowledgeRevisionDao.selectById(21L)).thenReturn(revision());
-        when(knowledgeReleaseDao.selectList(any())).thenReturn(List.of(release()));
-        when(knowledgeItemDao.selectById(31L)).thenReturn(item());
-        when(knowledgeStorageClient.readParsedChunk(anyString(), anyString())).thenReturn("退款三个工作日到账");
+        when(knowledgePublicEvidenceVerifier.verifyCandidate(anyLong(), anyBoolean(), any()))
+            .thenReturn(Optional.of(evidence()));
     }
 
     @Test
@@ -103,41 +89,13 @@ class KnowledgeRetrieveServiceImplRerankSwitchTest {
         return dto;
     }
 
-    private static KnowledgeChunkPo chunk() {
-        KnowledgeChunkPo chunk = new KnowledgeChunkPo();
-        chunk.setId(11L);
-        chunk.setOrganId(1L);
-        chunk.setRevisionId(21L);
-        chunk.setChunkStatus("INDEXED");
-        chunk.setSourceLocator("char:0:8");
-        chunk.setContentSha256(ContentHashes.sha256Utf8("退款三个工作日到账"));
-        return chunk;
-    }
-
-    private static KnowledgeRevisionPo revision() {
-        KnowledgeRevisionPo revision = new KnowledgeRevisionPo();
-        revision.setId(21L);
-        revision.setOrganId(1L);
-        revision.setKnowledgeId(31L);
-        revision.setRevisionStatus(KnowledgeRevisionStatus.PUBLISHED.name());
-        revision.setIndexStatus("INDEXED");
-        revision.setParsedStoragePath("parsed.md");
-        revision.setRevisionNo("v1");
-        return revision;
-    }
-
-    private static KnowledgeReleasePo release() {
-        KnowledgeReleasePo release = new KnowledgeReleasePo();
-        release.setActiveRevisionId(21L);
-        return release;
-    }
-
-    private static KnowledgeItemPo item() {
-        KnowledgeItemPo item = new KnowledgeItemPo();
-        item.setId(31L);
-        item.setOrganId(1L);
-        item.setStatus(KnowledgeEnablementStatus.ACTIVE.name());
-        item.setKnowledgeName("退款制度");
-        return item;
+    private static KnowledgeEvidenceVo evidence() {
+        KnowledgeEvidenceVo vo = new KnowledgeEvidenceVo();
+        vo.setChunkId(11L);
+        vo.setKnowledgeId(31L);
+        vo.setRevisionId(21L);
+        vo.setContent("退款三个工作日到账");
+        vo.setScore(0.4f);
+        return vo;
     }
 }

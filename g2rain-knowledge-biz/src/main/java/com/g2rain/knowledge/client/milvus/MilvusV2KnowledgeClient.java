@@ -26,7 +26,7 @@ import java.util.Map;
 @Component
 public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
     private static final List<String> FULL_ROW_FIELDS = List.of(
-        "chunk_id", "organ_id", "knowledge_id", "revision_id", "searchable", "tags",
+        "chunk_id", "organ_id", "knowledge_id", "revision_id", "searchable", "visibility", "tags",
         "source_type", "content", "title_path", "page_start", "page_end", "embedding_profile", "content_vector"
     );
     /** Enough for a single revision; avoids SDK default limit truncating confirm queries. */
@@ -122,7 +122,7 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             // Upsert requires the full non-nullable row; only flipping searchable is rejected by Milvus.
             var rows = queryRevision(collectionName, filter, FULL_ROW_FIELDS);
             List<JsonObject> changes = rows.stream()
-                .map(row -> copyRow(row.getEntity(), searchable))
+                .map(row -> copyRow(row.getEntity(), searchable, null))
                 .toList();
             if (changes.isEmpty()) {
                 log.warn("setSearchable found no entities: collection={}, organId={}, revisionId={}, searchable={}",
@@ -177,13 +177,44 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         client().flush(FlushReq.builder().collectionNames(List.of(collectionName)).build());
     }
 
-    private JsonObject copyRow(Map<String, Object> entity, boolean searchable) {
+    @Override
+    public void setVisibility(String collectionName, Long organId, Long revisionId, String visibility) {
+        try {
+            String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
+            var rows = queryRevision(collectionName, filter, FULL_ROW_FIELDS);
+            List<JsonObject> changes = rows.stream()
+                .map(row -> copyRow(row.getEntity(), asBoolean(row.getEntity().get("searchable")), visibility))
+                .toList();
+            if (changes.isEmpty()) {
+                log.warn("setVisibility found no entities: collection={}, organId={}, revisionId={}, visibility={}",
+                    collectionName, organId, revisionId, visibility);
+                return;
+            }
+            client().upsert(UpsertReq.builder().collectionName(collectionName).data(changes).build());
+            flush(collectionName);
+            log.info("setVisibility upserted: collection={}, organId={}, revisionId={}, visibility={}, count={}",
+                collectionName, organId, revisionId, visibility, changes.size());
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new BusinessException(KnowledgeErrorCode.MILVUS_OPERATION_FAILED, exception);
+        }
+    }
+
+    private JsonObject copyRow(Map<String, Object> entity, boolean searchable, String visibilityOverride) {
         JsonObject row = new JsonObject();
         row.addProperty("chunk_id", asLong(entity.get("chunk_id")));
         row.addProperty("organ_id", asLong(entity.get("organ_id")));
         row.addProperty("knowledge_id", asLong(entity.get("knowledge_id")));
         row.addProperty("revision_id", asLong(entity.get("revision_id")));
         row.addProperty("searchable", searchable);
+        String visibility = visibilityOverride != null
+            ? visibilityOverride
+            : String.valueOf(entity.getOrDefault("visibility", "PRIVATE"));
+        if (visibility == null || "null".equals(visibility) || visibility.isBlank()) {
+            visibility = "PRIVATE";
+        }
+        row.addProperty("visibility", visibility);
         row.addProperty("source_type", String.valueOf(entity.get("source_type")));
         row.addProperty("content", String.valueOf(entity.get("content")));
         row.addProperty("embedding_profile", String.valueOf(entity.get("embedding_profile")));
@@ -268,13 +299,14 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
     }
 
     @Override
-    public List<MilvusSearchCandidate> search(String collectionName, Long organId, List<String> allTagCodes,
-                                               List<String> anyTagCodes, float[] vector, int topK) {
+    public List<MilvusSearchCandidate> search(String collectionName, Long organId, boolean includePublic,
+                                               List<String> allTagCodes, List<String> anyTagCodes, float[] vector,
+                                               int topK) {
         try {
             var response = client().search(SearchReq.builder().collectionName(collectionName)
                 .annsField("content_vector").data(List.of(new FloatVec(vector))).topK(topK)
                 .metricType(IndexParam.MetricType.COSINE)
-                .filter(MilvusFilterBuilder.searchable(organId, allTagCodes, anyTagCodes))
+                .filter(MilvusFilterBuilder.searchable(organId, includePublic, allTagCodes, anyTagCodes))
                 .outputFields(List.of("chunk_id")).build());
             if (response.getSearchResults().isEmpty()) return List.of();
             return response.getSearchResults().getFirst().stream()
@@ -302,7 +334,8 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             var schema = client().describeCollection(DescribeCollectionReq.builder().collectionName(collectionName).build()).getCollectionSchema();
             boolean key = schema.getFieldSchemaList().stream().anyMatch(field -> "chunk_id".equals(field.getName()) && field.getIsPrimaryKey());
             boolean vector = schema.getFieldSchemaList().stream().anyMatch(field -> "content_vector".equals(field.getName()) && field.getDimension() == dimension);
-            if (!key || !vector) {
+            boolean visibility = schema.getFieldSchemaList().stream().anyMatch(field -> "visibility".equals(field.getName()));
+            if (!key || !vector || !visibility) {
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
         } catch (BusinessException exception) {
@@ -331,6 +364,8 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         }
         row.addProperty("embedding_profile", entity.embeddingProfile());
         row.addProperty("searchable", false);
+        row.addProperty("visibility",
+            entity.visibility() == null || entity.visibility().isBlank() ? "PRIVATE" : entity.visibility());
         JsonArray tags = new JsonArray();
         entity.tags().forEach(tags::add);
         row.add("tags", tags);

@@ -33,8 +33,19 @@
 | --- | --- |
 | 状态 | 已批准（2026-10-07） |
 | 变更 | 凡经 Gateway 可达本服务的调用方可访问本租户全部知识接口；隔离仅用 Starter `@DataIsolation` / `organ_id` |
-| 不做 | 服务内五能力点门禁、第二套数据隔离、业务路径 `WithoutIsolation` |
-| 说明 | 细粒度 IAM 若需要由 Gateway/管理端入口控制 |
+| 不做 | 服务内五能力点门禁、第二套数据隔离；业务路径默认不使用 `WithoutIsolation` |
+| 说明 | 细粒度 IAM 若需要由 Gateway/管理端入口控制。公共知识使用端只读例外见 DEV-004 |
+
+## DEV-004：公共知识使用端只读允许专用 WithoutIsolation（RQ-008）
+
+| 项 | 内容 |
+| --- | --- |
+| 状态 | 已批准方案口径（2026-10-27）；功能尚未实现 |
+| 变更 | 使用端只读路径可在**专用** Domain DAO/领域方法内使用 `WithoutIsolation`：（1）检索/问答/引用/详情/正文对已知 ID 集合只读后裁决；（2）公共列表与分类导航分页，SQL 固定 `visibility=PUBLIC` + 活动已发布/未删除等谓词，list 与 count 同一条件 |
+| 原因 | 公共浏览与检索必须读他机构元数据；本期以业务侧专用 WithoutIsolation 落地，不阻塞于 Starter 通用共享读 |
+| 允许 | 专用 Domain DAO；已知 ID 批量只读；公共目录固定谓词分页；用记录所属 organ 定位解析产物 |
+| 禁止 | 管理 CRUD、生成 CRUD 无隔离分页、无固定 PUBLIC 谓词的扫库、Service 散落调用、客户端 organId 授权、写路径、跨机构原文件下载、草稿/任务/处理产物借共享属性开放；本机构列表不得改走公共无隔离入口 |
+| 相关 | [RQ-008](../requirements/RQ-008-public-knowledge-sharing.md)；页面「本机构 / 公共」分开展示；共享范围变更专用命令同步标量；Milvus 主路径为现有 collection **原地**加 `visibility`；内容/业务标签仍走新版本 PROCESS 发布；资格取消后允许专用撤销公开/下线且不自动撤回 |
 
 ## 已登记延期缺口（非 Profile 例外）
 
@@ -42,6 +53,14 @@
 - 任务：`input_snapshot` / `lease_generation` / `cancel_requested` 列未接线；RUNNING 协作取消未实现。
 - 运营：主题/草稿/FAQ 经生成 `save` 已补受信组织、默认值与草稿白名单/`updateByVersion`（RQ-005）；`replaceFile` 与 PENDING retry/cancel 已暴露专用 HTTP。任务/切片/反馈 `/save` 仅补组织与 `@LoginGuard`，字段白名单未收紧，仍为已知残余风险。
 - 原文下载：`GET /knowledge_revision/{id}/source/download` 已按 RQ-006 提供附件流（审核不强制已下载）。
+
+## 已关闭：字符切分 vs HybridChunker
+
+| 项 | 内容 |
+| --- | --- |
+| 状态 | 已关闭（实现对齐架构） |
+| 曾有偏差 | 架构写 Docling + HybridChunker，PROCESS 实际为 convert Markdown 后每 1200 字符切分，`char:start:end` 定位 |
+| 现实现 | FILE（PDF/DOCX/DOC/PPTX/PPT/XLSX/XLS/MD/TXT/HTML）调用 Serve `/v1/chunk/hybrid/file`；FAQ 由 `KnowledgeChunkPolicy.chunkFaq`；产物为 `document.md` + `chunks.json`，locator 为 `chunk:{n}`；区分 rawText / embeddingText。遗留 `.doc`/`.ppt`/`.xls` 依赖 Serve 主机 LibreOffice 能力 |
 
 ## 本地实现选择（非例外）
 

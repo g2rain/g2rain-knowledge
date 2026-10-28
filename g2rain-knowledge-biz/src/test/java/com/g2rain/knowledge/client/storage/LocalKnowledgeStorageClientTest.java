@@ -70,7 +70,7 @@ class LocalKnowledgeStorageClientTest {
             new SourceMetadata("manual.pdf", "text/plain", 8)));
         assertThrows(BusinessException.class, () -> client.storeSource(1L, 2L, 3L,
             new ByteArrayInputStream("# hello".getBytes(StandardCharsets.UTF_8)),
-            new SourceMetadata("notes.txt", "text/plain", 7)));
+            new SourceMetadata("notes.csv", "text/csv", 7)));
         assertThrows(BusinessException.class, () -> client.storeSource(1L, 2L, 3L,
             new ByteArrayInputStream(new byte[] {(byte) 0xff, (byte) 0xfe, 0x00}),
             new SourceMetadata("broken.md", "text/markdown", 3)));

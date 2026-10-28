@@ -128,6 +128,9 @@ public class KnowledgeTaskServiceImpl implements KnowledgeTaskService {
             throw new BusinessException(KnowledgeErrorCode.REVISION_NOT_REVIEWABLE);
         }
         KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
+        if (item != null && "PUBLIC".equalsIgnoreCase(item.getVisibility())) {
+            knowledgeAccessService.requireAdminCompany();
+        }
         String tagsJson = item == null ? null : item.getTagsJson();
         String inputVersion = revision.getSourceSha256() == null
             ? Integer.toHexString(Objects.hash(revision.getFaqQuestion(), revision.getFaqAnswer(), tagsJson))

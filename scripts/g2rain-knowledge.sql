@@ -80,6 +80,7 @@ CREATE TABLE `knowledge_item` (
     `description` VARCHAR(1024) NULL COMMENT '知识说明',
     `priority` INT NOT NULL DEFAULT 0 COMMENT '运营与同主题并列排序优先级，数值越大越靠前；不写入Milvus过滤',
     `tags_json` JSON NULL COMMENT '主题已选标签编码数组，PROCESS/INDEX任务同步到Milvus Entity tags字段',
+    `visibility` VARCHAR(16) NOT NULL DEFAULT 'PRIVATE' COMMENT '共享范围[PRIVATE:仅本机构, PUBLIC:公共知识]',
     `create_user_id` BIGINT NULL COMMENT '创建用户标识',
     `create_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -87,7 +88,8 @@ CREATE TABLE `knowledge_item` (
     `delete_flag` TINYINT NOT NULL DEFAULT 0 COMMENT '删除标识[0:未删除, 1:已删除]',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_organ_knowledge_key_del` (`organ_id`, `knowledge_key`, (IF(delete_flag = 0, 0, NULL))),
-    INDEX `idx_organ_category_type_status_del` (`organ_id`, `category_id`, `knowledge_type`, `status`, (IF(delete_flag = 0, 0, NULL)))
+    INDEX `idx_organ_category_type_status_del` (`organ_id`, `category_id`, `knowledge_type`, `status`, (IF(delete_flag = 0, 0, NULL))),
+    INDEX `idx_visibility_del` (`visibility`, (IF(delete_flag = 0, 0, NULL)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='知识主题表';
 
 -- =============================================

@@ -20,4 +20,6 @@ public class DoclingProperties {
     private String apiKey = "";
     private Duration connectTimeout = Duration.ofSeconds(5);
     private Duration readTimeout = Duration.ofSeconds(90);
+    /** HybridChunker max_tokens; mapped to multipart chunking_max_tokens. */
+    private int chunkingMaxTokens = 512;
 }

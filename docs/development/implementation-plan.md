@@ -157,7 +157,7 @@
 | 类 | 待开发方法 | 责任 |
 | --- | --- | --- |
 | `client.storage.KnowledgeStorageClient`、`LocalKnowledgeStorageClient` | `StoredSource storeSource(organId,knowledgeId,revisionId,InputStream,metadata)`；`InputStream openSource(...)`；`void writeParsedArtifacts(...,ParsedDocument,List<ChunkContent>)`；`List<ChunkContent> readChunkContents(...,locators)`；`boolean verifyArtifacts(...)`；`void deleteUnreferencedStaging(...)` | 只允许服务生成的路径；原子落盘；检测 symlink/穿越/越界；外部不见存储路径 |
-| `client.docling.DoclingClient`、`DoclingServeClient` | `ParsedDocument parse(InputStream content, SourceMetadata metadata, Deadline deadline)`；`List<ChunkContent> chunk(ParsedDocument document, ChunkingProfile profile, Deadline deadline)` | 适配受控 Docling/HybridChunker 契约，不假设 Java 内有 Python chunker；若 Serve 不提供切片则先补内部适配契约 |
+| `client.docling.DoclingClient`、`DoclingServeClient` | `ParsedDocument parse(...)`；`ChunkingResult chunkFile(InputStream, SourceMetadata, fromFormat, ChunkingProfile)` → Serve `POST /v1/chunk/hybrid/file` | FILE（pdf/docx/doc/pptx/ppt/xlsx/xls/md/txt/html）走 HybridChunker；FAQ 不经此客户端 |
 | `domain.KnowledgeChunkPolicy` | `void validateManifest(List<ChunkContent>)`；`List<ChunkContent> chunkFaq(question,answer,profile)`；`void verifyContentHash(...)` | FAQ 走相同稳定定位/引用规则；UTF-8 字节、token、页码/定位、顺序完整性；正文不写 MySQL |
 | `service.KnowledgeParseService` / 解析 Tx（若保留） | 解析与切片作为 `PROCESS` Worker 内部步骤，**不是**审核前独立入口；不得再以「解析成功自动进入 REVIEWING」作为主路径 | 主入口为审核通过后的 `processRevision` / `PROCESS` 任务；独立 `submitParse` 仅可作内部/兼容能力，不能绕过审核 |
 
@@ -325,7 +325,7 @@ V1 已有基础结构；新增需求通过 V2+ 增量迁移，不修改已执行
 这些事项在对应阶段调查并形成具体配置/契约，无须现在暂停文档交付，也不能在实现中用默认猜测替代：
 
 1. Gateway 对主体头的清洗及服务身份验证方式，knowledge 五个能力点对应的平台权限来源；Starter 本身不包含完整的这些领域权限决策。
-2. Docling Serve 部署镜像已固定为 `v1.29.0`；已确认同步 multipart `POST /v1/convert/file`、`files`、`from_formats`、`to_formats` 和可选 `X-Api-Key`，首版适配器仅请求 Markdown 与纯文本。HybridChunker 的最终输出契约、支持格式/限额仍需通过部署 OpenAPI 确认。
+2. Docling Serve 部署镜像已固定为 `v1.29.0`。已确认并接入同步 HybridChunker：`POST /v1/chunk/hybrid/file`（`include_converted_doc`、`convert_from_formats`∈{pdf,docx,pptx,xlsx,md,html} 等；`.txt` 映射为 `md`；遗留 `.doc`/`.ppt`/`.xls` 省略枚举字段改嗅探）；字段映射见 [docling-serve-chunk-v1.29.md](../api/docling-serve-chunk-v1.29.md)。历史「仅 convert + 字符切分」实现已替换。
 3. Embedding/Rerank 实际供应商协议、不可变模型版本、归一化规则、独立 Secret、服务超时/限流，以及 Rerank 必选策略。
 4. Milvus 部署镜像为 `3.0.2`，后续 P3 接入时使用同版本官方 Java V2 SDK 与 `MilvusClientV2`，连接凭证使用 `MILVUS_TOKEN`；partial upsert、读写一致性、生产 profile/collection 绑定和新 profile 迁移方案仍需联调确认。
 5. MySQL 实际表结构与 V1 一致性、生产迁移工具、ID 服务可用性、Redis 锁装配和 shared storage 挂载。

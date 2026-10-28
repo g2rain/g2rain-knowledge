@@ -66,6 +66,11 @@ public class KnowledgeItemPo extends BasePo {
     private String tagsJson;
 
     /**
+     * 共享范围[PRIVATE:仅本机构, PUBLIC:公共知识]
+     */
+    private String visibility;
+
+    /**
      * 创建用户标识
      */
     private Long createUserId;

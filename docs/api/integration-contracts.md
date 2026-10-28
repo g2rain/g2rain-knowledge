@@ -25,6 +25,7 @@ POST /knowledge/retrieve
 | `allTagCodes` | 可选，全部为 `tag_code`，必须全部命中；重复值去重 |
 | `anyTagCodes` | 可选，全部为 `tag_code`，至少命中一个；与 `allTagCodes` 同时存在时为 AND 关系 |
 | `topK` | 可选，默认值与最大值由服务配置控制，超出最大值直接拒绝 |
+| `includePublic` | 可选 Boolean；缺省 / null / false 仅本机构；true 时额外召回 `visibility=PUBLIC` 的跨机构活动版本（RQ-008） |
 
 调用方不得传入 `organ_id`、revision、collection、Milvus filter、模型、分数阈值或本地文件定位。
 
@@ -108,7 +109,7 @@ POST /knowledge/answer
 
 | 依赖 | 契约边界 |
 | --- | --- |
-| Docling Serve | 接收受控文件引用或内容，返回结构化 JSON、Markdown 和 HybridChunker 所需信息 |
+| Docling Serve | FILE（PDF/Word/PPT/Excel/MD/TXT/HTML）经同步 `POST /v1/chunk/hybrid/file` 做结构感知切片；契约摘要见 [docling-serve-chunk-v1.29.md](docling-serve-chunk-v1.29.md)。FAQ 不调用 Serve |
 | Embedding API | 基于配置的模型生成向量；记录模型标识、耗时和失败类别，不记录敏感原文 |
 | Rerank API | 对限定候选集重排；不可绕过租户/版本过滤 |
 | Milvus | 仅写入或查询已获准的 chunk Entity；服务端强制组织、发布投影和标签过滤 |

@@ -7,6 +7,7 @@ import com.g2rain.knowledge.api.KnowledgeItemApi;
 import com.g2rain.knowledge.dto.KnowledgeImportOptionsDto;
 import com.g2rain.knowledge.dto.KnowledgeItemDto;
 import com.g2rain.knowledge.dto.KnowledgeItemSelectDto;
+import com.g2rain.knowledge.dto.KnowledgeVisibilityDto;
 import com.g2rain.knowledge.service.KnowledgeItemService;
 import com.g2rain.knowledge.vo.KnowledgeImportResultVo;
 import com.g2rain.knowledge.vo.KnowledgeItemVo;
@@ -62,6 +63,14 @@ public class KnowledgeItemController implements KnowledgeItemApi {
     @Operation(summary = "删除知识主题表记录", description = "根据主键删除知识主题表记录")
     public Result<Integer> delete(@Parameter(description = "知识主题表标识") @PathVariable Long id) {
         return Result.success(knowledgeItemService.delete(id));
+    }
+
+    @PostMapping("/visibility")
+    @LoginGuard
+    @Operation(summary = "设置知识共享范围", description = "专用命令修改 PRIVATE/PUBLIC，并同步 Milvus 标量")
+    public Result<Void> setVisibility(@RequestBody KnowledgeVisibilityDto dto) {
+        knowledgeItemService.setVisibility(dto);
+        return Result.success(null);
     }
 
     @Override

@@ -23,23 +23,29 @@ import com.g2rain.knowledge.dto.KnowledgeItemDto;
 import com.g2rain.knowledge.dto.KnowledgeItemSelectDto;
 import com.g2rain.knowledge.dto.KnowledgeReviewDto;
 import com.g2rain.knowledge.dto.KnowledgeRevisionSelectDto;
+import com.g2rain.knowledge.dto.KnowledgeVisibilityDto;
+import com.g2rain.knowledge.domain.KnowledgePublicWriteGuard;
 import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
+import com.g2rain.knowledge.enums.KnowledgeVisibility;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeDraftService;
 import com.g2rain.knowledge.service.KnowledgeItemService;
 import com.g2rain.knowledge.service.KnowledgeReviewService;
 import com.g2rain.knowledge.service.KnowledgeSaveSupport;
+import com.g2rain.knowledge.service.KnowledgeVisibilitySyncService;
 import com.g2rain.knowledge.vo.KnowledgeImportItemVo;
 import com.g2rain.knowledge.vo.KnowledgeImportResultVo;
 import com.g2rain.knowledge.vo.KnowledgeItemVo;
 import com.g2rain.mybatis.pagination.PageContext;
 import com.g2rain.mybatis.pagination.model.Page;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -67,6 +73,7 @@ import java.util.regex.Pattern;
  *
  * @author G2rain Generator
  */
+@Slf4j
 @Service(value = "knowledgeItemServiceImpl")
 public class KnowledgeItemServiceImpl implements KnowledgeItemService {
 
@@ -89,6 +96,10 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
     private KnowledgeDraftService knowledgeDraftService;
     @Resource
     private KnowledgeReviewService knowledgeReviewService;
+    @Resource
+    private KnowledgePublicWriteGuard knowledgePublicWriteGuard;
+    @Resource
+    private KnowledgeVisibilitySyncService knowledgeVisibilitySyncService;
 
     private IdGenerator idGenerator;
 
@@ -133,6 +144,10 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             if (Objects.isNull(dto.getPriority())) {
                 dto.setPriority(0);
             }
+            KnowledgeVisibility createVisibility = knowledgePublicWriteGuard.requireValid(
+                isBlank(dto.getVisibility()) ? KnowledgeVisibility.PRIVATE.name() : dto.getVisibility());
+            knowledgePublicWriteGuard.requireIfPublic(createVisibility.name());
+            dto.setVisibility(createVisibility.name());
             dto.setTagsJson(knowledgeSaveSupport.normalizeTagsJson(dto.getTagsJson()));
             knowledgeSaveSupport.validateCategory(organId, dto.getCategoryId());
             Validations.validateSave(dto);
@@ -140,6 +155,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
             entity.setId(idGenerator.generateId());
             entity.setOrganId(organId);
             entity.setCreateUserId(dto.getCreateUserId());
+            entity.setVisibility(createVisibility.name());
             LocalDateTime now = Moments.now();
             entity.setCreateTime(now);
             entity.setUpdateTime(now);
@@ -150,6 +166,12 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         KnowledgeItemPo existing = knowledgeItemDao.selectById(id);
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
         knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        knowledgePublicWriteGuard.requireIfPublic(existing.getVisibility());
+        if (Objects.nonNull(dto.getVisibility())
+            && !KnowledgeVisibility.parse(dto.getVisibility()).name()
+                .equals(KnowledgeVisibility.parse(existing.getVisibility()).name())) {
+            throw new BusinessException(KnowledgeErrorCode.VISIBILITY_VIA_SAVE_FORBIDDEN);
+        }
         if (Objects.nonNull(dto.getKnowledgeType())
             && !Objects.equals(dto.getKnowledgeType(), existing.getKnowledgeType())
             && hasRevisions(existing.getId())) {
@@ -167,6 +189,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         entity.setCreateUserId(existing.getCreateUserId());
         entity.setCreateTime(existing.getCreateTime());
         entity.setUpdateTime(Moments.now());
+        entity.setVisibility(existing.getVisibility());
         if (Objects.isNull(entity.getStatus())) {
             entity.setStatus(existing.getStatus());
         }
@@ -189,6 +212,37 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, id);
         knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         return knowledgeItemDao.delete(id);
+    }
+
+    @Override
+    @Transactional
+    public void setVisibility(KnowledgeVisibilityDto dto) {
+        KnowledgeVisibility target = knowledgePublicWriteGuard.requireValid(dto.getVisibility());
+        KnowledgeItemPo existing = knowledgeItemDao.selectById(dto.getKnowledgeId());
+        Asserts.isTrue(Objects.nonNull(existing), SystemErrorCode.DATA_NOT_EXISTS, dto.getKnowledgeId());
+        knowledgeAccessService.assertSameOrgan(existing.getOrganId());
+        knowledgePublicWriteGuard.requireIfPublic(existing.getVisibility(), target.name());
+
+        if (!Objects.equals(existing.getVersion(), dto.getExpectedVersion())) {
+            throw new BusinessException(KnowledgeErrorCode.VISIBILITY_VERSION_CONFLICT);
+        }
+        String before = KnowledgeVisibility.parse(existing.getVisibility()).name();
+        if (before.equals(target.name())) {
+            return;
+        }
+
+        KnowledgeItemPo update = new KnowledgeItemPo();
+        update.setId(existing.getId());
+        update.setVersion(dto.getExpectedVersion());
+        update.setVisibility(target.name());
+        update.setUpdateTime(Moments.now());
+        int rows = knowledgeItemDao.updateByVersion(update);
+        if (rows <= 0) {
+            throw new BusinessException(KnowledgeErrorCode.VISIBILITY_VERSION_CONFLICT);
+        }
+        log.info("visibility changed: knowledgeId={}, organId={}, userId={}, {} -> {}, result=OK",
+            existing.getId(), existing.getOrganId(), knowledgeAccessService.currentUserId(), before, target.name());
+        knowledgeVisibilitySyncService.syncActiveRevision(existing.getId());
     }
 
     @Override
