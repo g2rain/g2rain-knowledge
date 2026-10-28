@@ -36,6 +36,7 @@ g2rain:
       api-key: ${DOCLING_API_KEY:}
       connect-timeout: ${DOCLING_CONNECT_TIMEOUT:5s}
       read-timeout: ${DOCLING_READ_TIMEOUT:90s}
+      chunking-max-tokens: ${DOCLING_CHUNKING_MAX_TOKENS:512}
     embedding:
       dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:4096}
       encoding-format: ${KNOWLEDGE_EMBEDDING_ENCODING_FORMAT:}

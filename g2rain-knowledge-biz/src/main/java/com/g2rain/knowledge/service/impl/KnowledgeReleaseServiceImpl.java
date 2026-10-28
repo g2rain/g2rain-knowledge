@@ -21,8 +21,10 @@ import com.g2rain.knowledge.dto.KnowledgeReleaseDto;
 import com.g2rain.knowledge.dto.KnowledgeReleasePublishDto;
 import com.g2rain.knowledge.dto.KnowledgeReleaseRollbackDto;
 import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
+import com.g2rain.knowledge.domain.KnowledgePublicWriteGuard;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
+import com.g2rain.knowledge.enums.KnowledgeVisibility;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeReleaseService;
 import com.g2rain.knowledge.vo.KnowledgeReleaseVo;
@@ -60,6 +62,8 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
     private MilvusKnowledgeClient milvusKnowledgeClient;
     @Resource
     private MilvusProperties milvusProperties;
+    @Resource
+    private KnowledgePublicWriteGuard knowledgePublicWriteGuard;
 
     private IdGenerator idGenerator;
 
@@ -150,10 +154,18 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
     private Long switchActiveRevision(KnowledgeReleasePublishDto dto, boolean restoringDeprecated) {
         KnowledgeReleasePo release = requireRelease(dto);
         KnowledgeRevisionPo target = requireTarget(dto, release, restoringDeprecated);
+        KnowledgeItemPo theme = knowledgeItemDao.selectById(release.getKnowledgeId());
+        if (theme != null) {
+            knowledgePublicWriteGuard.requireIfPublic(theme.getVisibility());
+        }
         Long previousRevisionId = release.getActiveRevisionId();
 
-        // The target has already passed the full staged-index reconciliation. Publishing only changes visibility.
+        // The target has already passed the full staged-index reconciliation. Publishing only flips searchable.
         milvusKnowledgeClient.setSearchable(milvusProperties.getCollectionName(), target.getOrganId(), target.getId(), true);
+        if (theme != null) {
+            milvusKnowledgeClient.setVisibility(milvusProperties.getCollectionName(), target.getOrganId(),
+                target.getId(), KnowledgeVisibility.parse(theme.getVisibility()).name());
+        }
 
         LocalDateTime now = Moments.now();
         KnowledgeReleasePo releaseUpdate = new KnowledgeReleasePo();

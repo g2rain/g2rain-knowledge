@@ -5,6 +5,7 @@ import com.g2rain.common.model.PageSelectListDto;
 import com.g2rain.knowledge.dto.KnowledgeImportOptionsDto;
 import com.g2rain.knowledge.dto.KnowledgeItemDto;
 import com.g2rain.knowledge.dto.KnowledgeItemSelectDto;
+import com.g2rain.knowledge.dto.KnowledgeVisibilityDto;
 import com.g2rain.knowledge.vo.KnowledgeImportResultVo;
 import com.g2rain.knowledge.vo.KnowledgeItemVo;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,6 +51,11 @@ public interface KnowledgeItemService {
      * @return 操作结果（影响行数）
      */
     int delete(Long id);
+
+    /**
+     * 专用命令：修改主题共享范围（PRIVATE/PUBLIC），并同步 Milvus 标量。
+     */
+    void setVisibility(KnowledgeVisibilityDto dto);
 
     /**
      * Batch-create DOCUMENT topics (+ empty FILE drafts) from a CSV file.

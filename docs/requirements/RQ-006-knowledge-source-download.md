@@ -24,7 +24,7 @@ GET /knowledge_revision/{revisionId}/source/download
 - **文件就绪判定**与 `KnowledgeReviewServiceImpl.hasSource` 对齐：`sourceType=FILE` 且 `sourceStoragePath` 非空且非空白。FAQ 来源明确拒绝，不得下载。路径有值但磁盘文件缺失时，返回可理解的业务错误，避免一律暴露为笼统的 `STORAGE_OPERATION_FAILED`（可新增或复用领域错误码，实现时选定并写进契约）。
 - 不限定为已发布版本，`DRAFT`、`REVIEWING` 等已有原文件的版本均可读取；下载不改变版本状态、乐观锁 `version`、审核信息或任务。
 - 成功返回原始文件二进制流，不包装成 `Result`，不返回存储地址，不跳转到静态文件目录。
-- 文件类型使用版本记录中已保存的 `sourceContentType`；无法可靠确定时使用 `application/octet-stream`。当前上传允许 PDF / Markdown / HTML，下载契约不另行收窄 MIME，以库内元数据为准。
+- 文件类型使用版本记录中已保存的 `sourceContentType`；无法可靠确定时使用 `application/octet-stream`。当前上传允许 PDF / Word / PPT / Excel / Markdown / TXT / HTML，下载契约不另行收窄 MIME，以库内元数据为准。
 - `Content-Disposition` 固定为 `attachment`，文件名**只使用**版本记录中的 `sourceFileName`（存储侧已净化），经安全编码后写入响应头；中文文件名须可正确保存（如 RFC 5987）。禁止使用请求参数中的文件名，禁止把未净化输入直接拼进响应头。
 - 使用 `Cache-Control: no-store`，避免业务原文落入共享缓存。若跨域下载需要前端读取文件名，部署核对清单须确认 Gateway CORS 已暴露 `Content-Disposition`。
 - 登录失效、版本不存在或不可访问、FAQ 来源、文件未就绪、磁盘文件缺失和读取失败，沿用 G2rain 统一错误契约；不得泄露物理路径或底层异常。**所有可执行的业务与权限检查必须在开始发送文件流之前完成**；流一旦开始写出，中断后不能再向已发送的内容追加 JSON 错误。

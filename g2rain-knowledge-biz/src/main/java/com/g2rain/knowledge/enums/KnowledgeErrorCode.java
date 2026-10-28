@@ -27,6 +27,7 @@ public enum KnowledgeErrorCode implements ErrorCode {
     RELEASE_SAVE_UPDATE_FORBIDDEN("knowledge.40917", "发布选择请使用发布或回滚接口，禁止通用保存更新"),
     RELEASE_DELETE_FORBIDDEN("knowledge.40918", "发布记录已承载线上版本，禁止删除；下线请使用专用接口"),
     INVALID_TAGS_JSON("knowledge.40008", "标签 JSON 格式无效"),
+    CHUNK_MANIFEST_INVALID("knowledge.40012", "切片清单校验失败"),
     STORAGE_NOT_CONFIGURED("knowledge.50001", "知识文件存储未配置"),
     STORAGE_OPERATION_FAILED("knowledge.50002", "知识文件存储操作失败"),
     TASK_NOT_RETRYABLE("knowledge.40908", "当前任务不可重试"),
@@ -53,7 +54,11 @@ public enum KnowledgeErrorCode implements ErrorCode {
     RERANK_OPERATION_FAILED("knowledge.50207", "重排序模型调用失败"),
     RERANK_INVALID_RESPONSE("knowledge.50208", "重排序模型返回了无效结果"),
     DEPENDENCY_UNAVAILABLE("knowledge.50301", "知识检索依赖暂不可用"),
-    RETRIEVE_DEADLINE_EXCEEDED("knowledge.50302", "知识检索超过总耗时预算");
+    RETRIEVE_DEADLINE_EXCEEDED("knowledge.50302", "知识检索超过总耗时预算"),
+    INVALID_VISIBILITY("knowledge.40013", "共享范围无效，仅支持 PRIVATE 或 PUBLIC"),
+    VISIBILITY_VERSION_CONFLICT("knowledge.40920", "主题共享范围已被其他操作更新，请刷新后重试"),
+    PUBLIC_WRITE_FORBIDDEN("knowledge.40921", "无权发布或更新公共知识"),
+    VISIBILITY_VIA_SAVE_FORBIDDEN("knowledge.40922", "共享范围请使用专用接口修改，禁止通用保存隐式变更");
 
     private final String code;
     private final String messageTemplate;

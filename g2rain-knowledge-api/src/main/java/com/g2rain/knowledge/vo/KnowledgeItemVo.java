@@ -79,6 +79,12 @@ public class KnowledgeItemVo extends BaseVo {
     private String tagsJson;
 
     /**
+     * 共享范围[PRIVATE:仅本机构, PUBLIC:公共知识]
+     */
+    @Schema(description = "共享范围 PRIVATE/PUBLIC")
+    private String visibility;
+
+    /**
      * 创建用户标识
      */
     @Schema(description = "创建用户标识")

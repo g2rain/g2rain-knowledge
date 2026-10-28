@@ -21,7 +21,7 @@
 | 规则 | 说明 |
 | --- | --- |
 | 标签字典 | `knowledge_tag` 是组织内扁平字典。`tag_code` 创建时显式给出（小写字母、数字、下划线），创建后冻结；`tag_name` 可改。禁止空编码、空名称和重复有效 `tag_code`。 |
-| 主题标签 | item 保存 `tags_json` 的 `tag_code` 数组与 `priority`；`PROCESS`/`INDEX` 从 Item 复制 tags 到 Milvus Entity。改已发布主题标签后需重新 PROCESS 才会更新向量侧。 |
+| 主题标签 | item 保存 `tags_json` 的 `tag_code` 数组与 `priority`；`PROCESS`/`INDEX` 从 Item 复制 tags 到 Milvus Entity。改已发布主题业务标签不支持就地更新向量；须新建版本并 PROCESS、发布后活动投影才切换。 |
 | 停用 | 停用标签后不得再被新草稿选择；已有 revision 仍按其 code 快照检索，直到运营人员以新 revision 替换。 |
 | 删除 | 已被任何 revision 使用的标签不执行物理删除，只能停用或逻辑删除；未使用标签可逻辑删除。 |
 | 筛选语义 | `all_tags` / `any_tags` 传 `tag_code`。`all_tags` 必须全部命中，`any_tags` 至少命中一个；两组同时存在时取 AND。标签为空不限制业务范围。未知或停用 code 在新草稿选择时拒绝；**检索请求中未知 code 直接拒绝**（与接口契约及实现一致，不伪装为无证据）。 |
@@ -72,8 +72,8 @@
 `answerable` 是 Knowledge Service 对“是否存在足够、有效证据”的判断，不是大模型回答质量承诺。至少同时满足：
 
 1. 调用请求合法，并具有可信 `organ_id`；
-2. 至少一个候选通过 Milvus 的 `organ_id`、`searchable=true`、标签条件过滤；
-3. 至少一个候选通过 MySQL 对 chunk 未删除、组织一致与活动 revision 的复核；
+2. 至少一个候选通过 Milvus 的 `searchable=true`、组织或（`includePublic` 时）`visibility=PUBLIC`、以及业务标签条件过滤（见 RQ-008）；
+3. 至少一个候选通过 MySQL 对 chunk 未删除、可见性（本机构或公共活动版本）与活动 revision 的复核；
 4. Rerank 后满足配置化的最低证据策略，例如最低分、最少证据数或来源去重规则；
 5. 每个返回证据均能产生稳定引用。
 
@@ -90,5 +90,6 @@
 
 - **入口**：凡经 Gateway 可达本服务接口的调用方，均可访问**本租户**知识数据与领域命令（含检索、受控问答与运营写路径）。
 - **隔离**：统一采用 Starter `@DataIsolation` 与主体上下文中的 `organ_id`；Biz 侧可做 `requireOrganId` / `assertSameOrgan` 防御性断言。
-- **不做**：本服务内不落地 `knowledge.read/edit/review/publish/operate` 等细粒度能力点门禁，也不另建第二套租户隔离或业务 `WithoutIsolation` 路径。
+- **不做**：本服务内不落地 `knowledge.read/edit/review/publish/operate` 等细粒度能力点门禁，也不另建第二套租户隔离。
+- **WithoutIsolation**：默认禁止。已批准例外见 [DEV-003](deviations.md) Worker 读任务与 [DEV-004](deviations.md) 公共知识使用端只读（已知 ID 复核 + 固定谓词的公共列表/分类分页，RQ-008）；管理 CRUD、无谓词扫库、写路径与跨机构原文件下载仍禁止。
 - 细粒度 IAM 角色若需要，由 Gateway / 管理端在入口侧控制，不替代 Starter 数据隔离。

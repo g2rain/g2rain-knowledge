@@ -88,6 +88,13 @@ public class KnowledgeItemDto extends BaseDto {
     private String tagsJson;
 
     /**
+     * 共享范围；创建时可指定，默认 PRIVATE；更新请用专用接口，通用 save 忽略变更
+     */
+    @Size(max = 16)
+    @Schema(description = "共享范围 PRIVATE/PUBLIC；省略时默认 PRIVATE")
+    private String visibility;
+
+    /**
      * 创建用户标识（服务端填充）
      */
     @Schema(description = "创建用户标识（服务端填充，前端可省略）")
