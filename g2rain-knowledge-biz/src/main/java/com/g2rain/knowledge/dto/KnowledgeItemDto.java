@@ -75,6 +75,26 @@ public class KnowledgeItemDto extends BaseDto {
     private String description;
 
     /**
+     * 运营与同主题并列排序优先级；省略时服务端默认 0
+     */
+    @Schema(description = "运营优先级；省略时服务端默认 0")
+    private Integer priority;
+
+    /**
+     * 主题已选标签编码数组 JSON；省略或空字符串规范化为 []
+     */
+    @Size(max = 1073741824)
+    @Schema(description = "标签编码 JSON 数组；省略或空字符串规范化为 []", maxLength = 1073741824)
+    private String tagsJson;
+
+    /**
+     * 共享范围；创建时可指定，默认 PRIVATE；更新请用专用接口，通用 save 忽略变更
+     */
+    @Size(max = 16)
+    @Schema(description = "共享范围 PRIVATE/PUBLIC；省略时默认 PRIVATE")
+    private String visibility;
+
+    /**
      * 创建用户标识（服务端填充）
      */
     @Schema(description = "创建用户标识（服务端填充，前端可省略）")

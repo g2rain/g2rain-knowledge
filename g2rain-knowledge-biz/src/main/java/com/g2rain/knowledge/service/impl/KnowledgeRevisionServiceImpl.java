@@ -135,8 +135,6 @@ public class KnowledgeRevisionServiceImpl implements KnowledgeRevisionService {
         entity.setRevisionStatus(KnowledgeRevisionStatus.DRAFT.name());
         entity.setChunkCount(0);
         entity.setIndexStatus(PENDING);
-        entity.setPriority(Objects.requireNonNullElse(dto.getPriority(), 0));
-        entity.setTagsJson(dto.getTagsJson());
         entity.setCreateUserId(dto.getCreateUserId());
         clearProtectedSystemFields(entity);
         if (KnowledgeSourceType.FILE.name().equals(entity.getSourceType())) {
@@ -180,10 +178,6 @@ public class KnowledgeRevisionServiceImpl implements KnowledgeRevisionService {
         dto.setRevisionStatus(KnowledgeRevisionStatus.DRAFT.name());
         dto.setChunkCount(0);
         dto.setIndexStatus(PENDING);
-        if (Objects.isNull(dto.getPriority())) {
-            dto.setPriority(0);
-        }
-        dto.setTagsJson(knowledgeSaveSupport.normalizeTagsJson(dto.getTagsJson()));
         if (KnowledgeSourceType.FILE.name().equals(dto.getSourceType())) {
             dto.setFaqQuestion(null);
             dto.setFaqAnswer(null);
@@ -196,12 +190,6 @@ public class KnowledgeRevisionServiceImpl implements KnowledgeRevisionService {
         update.setVersion(dto.getVersion());
         if (Objects.nonNull(dto.getRevisionNo())) {
             update.setRevisionNo(dto.getRevisionNo());
-        }
-        if (Objects.nonNull(dto.getPriority())) {
-            update.setPriority(dto.getPriority());
-        }
-        if (Objects.nonNull(dto.getTagsJson())) {
-            update.setTagsJson(knowledgeSaveSupport.normalizeTagsJson(dto.getTagsJson()));
         }
         if (KnowledgeSourceType.FAQ.name().equals(existing.getSourceType())) {
             if (Objects.nonNull(dto.getFaqQuestion())) {

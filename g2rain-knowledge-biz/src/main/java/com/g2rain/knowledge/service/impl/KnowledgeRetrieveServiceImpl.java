@@ -13,24 +13,12 @@ import com.g2rain.knowledge.client.model.KnowledgeRerankClient;
 import com.g2rain.knowledge.client.model.KnowledgeRerankProperties;
 import com.g2rain.knowledge.client.model.RerankScore;
 import com.g2rain.knowledge.client.retrieve.KnowledgeRetrieveProperties;
-import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
-import com.g2rain.knowledge.dao.KnowledgeChunkDao;
-import com.g2rain.knowledge.dao.KnowledgeItemDao;
-import com.g2rain.knowledge.dao.KnowledgeReleaseDao;
-import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
 import com.g2rain.knowledge.dao.KnowledgeTagDao;
-import com.g2rain.knowledge.dao.po.KnowledgeChunkPo;
-import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
-import com.g2rain.knowledge.dao.po.KnowledgeReleasePo;
-import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
-import com.g2rain.knowledge.domain.ContentHashes;
-import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
 import com.g2rain.knowledge.dto.KnowledgeRetrieveDto;
 import com.g2rain.knowledge.dto.KnowledgeTagSelectDto;
-import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
-import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
+import com.g2rain.knowledge.service.KnowledgePublicEvidenceVerifier;
 import com.g2rain.knowledge.service.KnowledgeRetrieveService;
 import com.g2rain.knowledge.vo.KnowledgeEvidenceVo;
 import com.g2rain.knowledge.vo.KnowledgeRetrieveVo;
@@ -40,7 +28,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -65,11 +52,7 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
 
     @Resource private KnowledgeAccessService knowledgeAccessService;
     @Resource private KnowledgeTagDao knowledgeTagDao;
-    @Resource private KnowledgeChunkDao knowledgeChunkDao;
-    @Resource private KnowledgeRevisionDao knowledgeRevisionDao;
-    @Resource private KnowledgeReleaseDao knowledgeReleaseDao;
-    @Resource private KnowledgeItemDao knowledgeItemDao;
-    @Resource private KnowledgeStorageClient knowledgeStorageClient;
+    @Resource private KnowledgePublicEvidenceVerifier knowledgePublicEvidenceVerifier;
     @Resource private EmbeddingClient embeddingClient;
     @Resource private KnowledgeRerankClient knowledgeRerankClient;
     @Resource private KnowledgeRerankProperties rerankProperties;
@@ -81,6 +64,7 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
     public KnowledgeRetrieveVo retrieve(KnowledgeRetrieveDto dto) {
         Deadline deadline = Deadline.afterMillis(retrieveProperties.getTotalTimeoutMs());
         Long organId = knowledgeAccessService.requireOrganId();
+        boolean includePublic = Boolean.TRUE.equals(dto.getIncludePublic());
         String query = dto.getQuery().trim();
         int topK = topK(dto.getTopK());
         List<String> allTags = tags(organId, dto.getAllTagCodes());
@@ -90,13 +74,14 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
         float[] vector = dependency("embedding", () -> embeddingClient.embed(List.of(query)).getFirst());
         deadline.check();
         List<MilvusSearchCandidate> candidates = dependency("milvus", () -> milvusKnowledgeClient.search(
-            milvusProperties.getCollectionName(), organId, allTags, anyTags, vector,
+            milvusProperties.getCollectionName(), organId, includePublic, allTags, anyTags, vector,
             Math.min(retrieveProperties.getMaxTopK() * 3, topK * 3)));
 
         List<KnowledgeEvidenceVo> verified = new ArrayList<>();
         for (MilvusSearchCandidate candidate : candidates) {
             deadline.check();
-            verifiedEvidence(organId, candidate).ifPresent(verified::add);
+            knowledgePublicEvidenceVerifier.verifyCandidate(organId, includePublic, candidate)
+                .ifPresent(verified::add);
         }
         deadline.check();
         List<KnowledgeEvidenceVo> sources = rerank(query, verified, topK);
@@ -122,58 +107,6 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
             item.setScore(score.score());
             return item;
         }).limit(topK).toList();
-    }
-
-    private java.util.Optional<KnowledgeEvidenceVo> verifiedEvidence(Long organId, MilvusSearchCandidate candidate) {
-        KnowledgeChunkPo chunk = knowledgeChunkDao.selectById(candidate.chunkId());
-        if (chunk == null || !Objects.equals(chunk.getOrganId(), organId) || !"INDEXED".equals(chunk.getChunkStatus())) {
-            return java.util.Optional.empty();
-        }
-        KnowledgeRevisionPo revision = knowledgeRevisionDao.selectById(chunk.getRevisionId());
-        if (revision == null || !Objects.equals(revision.getOrganId(), organId)
-            || !KnowledgeRevisionStatus.PUBLISHED.name().equals(revision.getRevisionStatus())
-            || !"INDEXED".equals(revision.getIndexStatus())) {
-            return java.util.Optional.empty();
-        }
-        KnowledgeReleaseSelectDto releaseQuery = new KnowledgeReleaseSelectDto();
-        releaseQuery.setOrganId(organId);
-        releaseQuery.setKnowledgeId(revision.getKnowledgeId());
-        releaseQuery.setReleaseStatus("PUBLISHED");
-        List<KnowledgeReleasePo> releases = knowledgeReleaseDao.selectList(releaseQuery);
-        if (releases.size() != 1 || !Objects.equals(releases.getFirst().getActiveRevisionId(), revision.getId())) {
-            return java.util.Optional.empty();
-        }
-        KnowledgeItemPo item = knowledgeItemDao.selectById(revision.getKnowledgeId());
-        if (item == null || !Objects.equals(item.getOrganId(), organId)
-            || !KnowledgeEnablementStatus.ACTIVE.name().equals(item.getStatus())) {
-            return java.util.Optional.empty();
-        }
-
-        String content;
-        try {
-            content = knowledgeStorageClient.readParsedChunk(revision.getParsedStoragePath(), chunk.getSourceLocator());
-        } catch (BusinessException exception) {
-            if (isDependency(exception)) {
-                throw asDependency("storage", exception);
-            }
-            return java.util.Optional.empty();
-        }
-        if (!ContentHashes.matches(content, chunk.getContentSha256())) {
-            return java.util.Optional.empty();
-        }
-
-        KnowledgeEvidenceVo evidence = new KnowledgeEvidenceVo();
-        evidence.setKnowledgeId(item.getId());
-        evidence.setRevisionId(revision.getId());
-        evidence.setChunkId(chunk.getId());
-        evidence.setContent(content);
-        evidence.setTitle(item.getKnowledgeName());
-        evidence.setSection(chunk.getTitlePath());
-        evidence.setPage(chunk.getPageStart());
-        evidence.setRevisionNo(revision.getRevisionNo());
-        evidence.setCitation(citation(item, revision, chunk));
-        evidence.setScore(candidate.score());
-        return java.util.Optional.of(evidence);
     }
 
     private int topK(Integer requested) {
@@ -202,12 +135,6 @@ public class KnowledgeRetrieveServiceImpl implements KnowledgeRetrieveService {
             }
         }
         return List.copyOf(tags);
-    }
-
-    private String citation(KnowledgeItemPo item, KnowledgeRevisionPo revision, KnowledgeChunkPo chunk) {
-        String location = chunk.getPageStart() == null ? chunk.getTitlePath() : "第" + chunk.getPageStart() + " 页";
-        return item.getKnowledgeName() + " " + revision.getRevisionNo() + "，"
-            + (location == null || location.isBlank() ? "内容片段" : location);
     }
 
     private <T> T dependency(String name, DependencyCall<T> call) {

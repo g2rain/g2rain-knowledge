@@ -1,6 +1,9 @@
 package com.g2rain.knowledge.client.storage;
 
 import com.g2rain.common.exception.BusinessException;
+import com.g2rain.common.json.JsonCodec;
+import com.g2rain.common.json.JsonCodecFactory;
+import com.g2rain.knowledge.domain.ChunkContent;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import org.springframework.stereotype.Component;
 
@@ -20,16 +23,21 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Stores FILE sources below a server-owned root. Accepts PDF, Markdown, and HTML.
- * PDF bytes are checked with the {@code %PDF-} signature; text formats must be UTF-8.
+ * Stores FILE sources below a server-owned root. Accepts PDF, Office (doc/docx/ppt/pptx/xls/xlsx),
+ * Markdown, TXT, and HTML. Office/PDF use binary sniffing; text formats must be UTF-8.
  */
 @Component
 public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
     private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] ZIP_SIGNATURE = new byte[] {0x50, 0x4B, 0x03, 0x04};
+    private static final byte[] OLE_SIGNATURE = new byte[] {
+        (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
+    private static final JsonCodec JSON = JsonCodecFactory.instance();
     private final KnowledgeStorageProperties properties;
 
     public LocalKnowledgeStorageClient(KnowledgeStorageProperties properties) {
@@ -58,8 +66,8 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
         Path target = sourceDirectory.resolve(UUID.randomUUID() + kind.extension());
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            long size = kind == SourceFileKind.PDF
-                ? copyPdfAndDigest(content, temporary, digest)
+            long size = kind.binary()
+                ? copyBinaryAndDigest(kind, content, temporary, digest)
                 : copyTextAndDigest(content, temporary, digest);
             if (size < 1 || size > properties.getMaxFileSize().toBytes()) {
                 Files.deleteIfExists(temporary);
@@ -108,54 +116,116 @@ public class LocalKnowledgeStorageClient implements KnowledgeStorageClient {
     }
 
     @Override
-    public String writeParsed(Long organId, Long knowledgeId, Long revisionId, Long taskId, String content) {
+    public String writeParsedArtifacts(Long organId, Long knowledgeId, Long revisionId, Long taskId,
+                                       String documentMarkdown, List<ChunkContent> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        }
         Path root = requireRoot();
         Path directory = root.resolve(organId.toString()).resolve(knowledgeId.toString()).resolve(revisionId.toString())
             .resolve("parsed").resolve(taskId.toString()).normalize();
         assertWithinRoot(root, directory);
         ensureDirectory(directory, root);
-        Path target = directory.resolve("document.md");
+        Path document = directory.resolve("document.md");
+        Path chunksFile = directory.resolve("chunks.json");
         try {
-            Files.writeString(target, content, StandardCharsets.UTF_8,
+            String markdown = Objects.requireNonNullElse(documentMarkdown, "");
+            Files.writeString(document, markdown, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-            return root.relativize(target).toString().replace('\\', '/');
-        } catch (IOException exception) {
+            List<StoredChunkArtifact> artifacts = chunks.stream()
+                .map(c -> new StoredChunkArtifact(
+                    c.chunkNo(), c.sourceLocator(), c.rawText(), c.embeddingText(),
+                    c.tokenCount(), c.pageStart(), c.pageEnd(), c.titlePath(), c.contentSha256()))
+                .toList();
+            Files.writeString(chunksFile, JSON.obj2str(artifacts), StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            return root.relativize(document).toString().replace('\\', '/');
+        } catch (IOException | RuntimeException exception) {
             throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
         }
     }
 
     @Override
     public String readParsedChunk(String relativePath, String locator) {
-        if (locator == null || !locator.startsWith("char:")) {
+        return readChunkField(relativePath, locator, true);
+    }
+
+    @Override
+    public String readChunkForEmbedding(String relativePath, String locator) {
+        return readChunkField(relativePath, locator, false);
+    }
+
+    private String readChunkField(String relativePath, String locator, boolean raw) {
+        int chunkNo = parseChunkLocator(locator);
+        StoredChunkArtifact artifact = loadChunk(relativePath, chunkNo);
+        String value = raw ? artifact.rawText() : artifact.embeddingText();
+        if (value == null || value.isBlank()) {
             throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
         }
-        String[] positions = locator.substring(5).split(":", -1);
-        if (positions.length != 2) {
+        return value;
+    }
+
+    private int parseChunkLocator(String locator) {
+        if (locator == null || !locator.startsWith("chunk:")) {
             throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
         }
         try {
-            int start = Integer.parseInt(positions[0]);
-            int end = Integer.parseInt(positions[1]);
-            Path root = requireRoot();
-            Path target = root.resolve(relativePath).normalize();
-            assertWithinRoot(root, target);
-            String content = Files.readString(target, StandardCharsets.UTF_8);
-            if (start < 0 || end < start || end > content.length()) {
+            int chunkNo = Integer.parseInt(locator.substring("chunk:".length()));
+            if (chunkNo < 1) {
                 throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
             }
-            return content.substring(start, end);
-        } catch (IOException | NumberFormatException exception) {
+            return chunkNo;
+        } catch (NumberFormatException exception) {
             throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
         }
     }
 
-    private long copyPdfAndDigest(InputStream content, Path temporary, MessageDigest digest) throws IOException {
+    private StoredChunkArtifact loadChunk(String relativePath, int chunkNo) {
+        Path root = requireRoot();
+        Path document = root.resolve(relativePath).normalize();
+        assertWithinRoot(root, document);
+        Path chunksFile = document.getParent() == null
+            ? document.resolveSibling("chunks.json")
+            : document.getParent().resolve("chunks.json");
+        assertWithinRoot(root, chunksFile);
+        try {
+            String json = Files.readString(chunksFile, StandardCharsets.UTF_8);
+            List<StoredChunkArtifact> artifacts = JSON.str2obj(json, List.class, StoredChunkArtifact.class);
+            if (artifacts == null) {
+                throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+            }
+            for (StoredChunkArtifact artifact : artifacts) {
+                if (artifact != null && artifact.chunkNo() == chunkNo) {
+                    return artifact;
+                }
+            }
+            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        } catch (IOException | RuntimeException exception) {
+            if (exception instanceof BusinessException businessException) {
+                throw businessException;
+            }
+            throw new BusinessException(KnowledgeErrorCode.STORAGE_OPERATION_FAILED);
+        }
+    }
+
+    private long copyBinaryAndDigest(SourceFileKind kind, InputStream content, Path temporary, MessageDigest digest)
+        throws IOException {
         long total = 0;
         try (BufferedInputStream input = new BufferedInputStream(content);
              DigestInputStream digestInput = new DigestInputStream(input, digest);
              OutputStream output = Files.newOutputStream(temporary, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-            byte[] prefix = digestInput.readNBytes(PDF_SIGNATURE.length);
-            if (!java.util.Arrays.equals(prefix, PDF_SIGNATURE)) {
+            byte[] expected;
+            if (kind == SourceFileKind.PDF) {
+                expected = PDF_SIGNATURE;
+            } else if (kind.zipContainer()) {
+                expected = ZIP_SIGNATURE;
+            } else if (kind.oleContainer()) {
+                expected = OLE_SIGNATURE;
+            } else {
+                throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
+            }
+            byte[] prefix = digestInput.readNBytes(expected.length);
+            if (prefix.length != expected.length || !java.util.Arrays.equals(prefix, expected)) {
                 throw new BusinessException(KnowledgeErrorCode.INVALID_SOURCE_FILE);
             }
             output.write(prefix);

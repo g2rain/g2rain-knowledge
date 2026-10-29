@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 /**
  * Creates a knowledge topic. Tenant, status and creator are derived by the service.
  */
@@ -32,4 +34,8 @@ public class KnowledgeCreateDto extends BaseDto {
 
     @Size(max = 1024)
     private String description;
+
+    private List<@Pattern(regexp = "[a-z0-9_]+") @Size(max = 64) String> tags;
+
+    private Integer priority;
 }

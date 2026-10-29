@@ -100,7 +100,7 @@ verification:
 documentation:
   entry: docs/index.md
   agentEntry: AGENTS.md
-  activeRequirement: docs/requirements/RQ-005-knowledge-save-contract-upgrade.md
+  activeRequirement: docs/requirements/RQ-008-public-knowledge-sharing.md
 
 
 release:

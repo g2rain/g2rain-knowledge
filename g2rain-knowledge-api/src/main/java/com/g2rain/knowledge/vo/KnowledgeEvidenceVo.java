@@ -12,6 +12,9 @@ public class KnowledgeEvidenceVo {
     private Long knowledgeId;
     private Long revisionId;
     private Long chunkId;
+    private Long organId;
+    private Long categoryId;
+    private String visibility;
     private String content;
     private String title;
     private String section;

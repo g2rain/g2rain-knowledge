@@ -16,6 +16,9 @@ public interface MilvusKnowledgeClient {
 
     void setSearchable(String collectionName, Long organId, Long revisionId, boolean searchable);
 
-    List<MilvusSearchCandidate> search(String collectionName, Long organId, List<String> allTagCodes,
-                                        List<String> anyTagCodes, float[] vector, int topK);
+    /** Full-row upsert flipping only visibility scalar; vectors preserved (RQ-008). */
+    void setVisibility(String collectionName, Long organId, Long revisionId, String visibility);
+
+    List<MilvusSearchCandidate> search(String collectionName, Long organId, boolean includePublic,
+                                        List<String> allTagCodes, List<String> anyTagCodes, float[] vector, int topK);
 }

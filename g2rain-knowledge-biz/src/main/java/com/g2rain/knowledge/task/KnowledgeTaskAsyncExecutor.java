@@ -3,17 +3,21 @@ package com.g2rain.knowledge.task;
 import com.g2rain.common.utils.Moments;
 import com.g2rain.common.web.PrincipalContext;
 import com.g2rain.common.web.PrincipalContextHolder;
-import com.g2rain.knowledge.dao.KnowledgeTaskDao;
-import com.g2rain.knowledge.dao.po.KnowledgeTaskPo;
-import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
-import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.client.docling.DoclingClient;
-import com.g2rain.knowledge.client.docling.ParsedDocument;
+import com.g2rain.knowledge.client.docling.DoclingProperties;
 import com.g2rain.knowledge.client.storage.KnowledgeStorageClient;
 import com.g2rain.knowledge.client.storage.SourceFileKind;
 import com.g2rain.knowledge.client.storage.SourceMetadata;
-import com.g2rain.knowledge.service.KnowledgeProcessPersistenceService;
+import com.g2rain.knowledge.dao.KnowledgeRevisionDao;
+import com.g2rain.knowledge.dao.KnowledgeTaskDao;
+import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
+import com.g2rain.knowledge.dao.po.KnowledgeTaskPo;
+import com.g2rain.knowledge.domain.ChunkContent;
+import com.g2rain.knowledge.domain.ChunkingProfile;
+import com.g2rain.knowledge.domain.ChunkingResult;
+import com.g2rain.knowledge.domain.KnowledgeChunkPolicy;
 import com.g2rain.knowledge.service.KnowledgeIndexService;
+import com.g2rain.knowledge.service.KnowledgeProcessPersistenceService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -21,15 +25,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.HexFormat;
-import java.util.ArrayList;
 
 /** Claims a committed PROCESS task on a virtual thread; processing stages follow in this executor. */
 @Slf4j
@@ -41,6 +42,8 @@ public class KnowledgeTaskAsyncExecutor {
     @Resource private KnowledgeRevisionDao knowledgeRevisionDao;
     @Resource private KnowledgeStorageClient knowledgeStorageClient;
     @Resource private DoclingClient doclingClient;
+    @Resource private DoclingProperties doclingProperties;
+    @Resource private KnowledgeChunkPolicy knowledgeChunkPolicy;
     @Resource private KnowledgeProcessPersistenceService knowledgeProcessPersistenceService;
     @Resource private KnowledgeIndexService knowledgeIndexService;
 
@@ -90,13 +93,16 @@ public class KnowledgeTaskAsyncExecutor {
             return;
         }
         try {
-            log.info("PROCESS load content start: taskId={}, revisionId={}, sourceType={}",
+            log.info("PROCESS chunk start: taskId={}, revisionId={}, sourceType={}",
                 task.getId(), revision.getId(), revision.getSourceType());
-            String content = loadContent(revision);
-            log.info("PROCESS write parsed start: taskId={}, revisionId={}, contentLength={}",
-                task.getId(), revision.getId(), content == null ? 0 : content.length());
-            String path = knowledgeStorageClient.writeParsed(revision.getOrganId(), revision.getKnowledgeId(), revision.getId(), task.getId(), content);
-            knowledgeProcessPersistenceService.saveParsed(revision, path, chunks(content));
+            ChunkingResult chunking = chunkRevision(revision);
+            knowledgeChunkPolicy.validateManifest(chunking.chunks());
+            log.info("PROCESS write parsed start: taskId={}, revisionId={}, chunkCount={}",
+                task.getId(), revision.getId(), chunking.chunks().size());
+            String path = knowledgeStorageClient.writeParsedArtifacts(
+                revision.getOrganId(), revision.getKnowledgeId(), revision.getId(), task.getId(),
+                chunking.documentMarkdown(), chunking.chunks());
+            knowledgeProcessPersistenceService.saveParsed(revision, path, chunking.chunks(), chunking.parserName());
             log.info("PROCESS index start: taskId={}, revisionId={}", task.getId(), revision.getId());
             knowledgeIndexService.index(revision.getId());
             knowledgeProcessPersistenceService.complete(revision.getId());
@@ -110,33 +116,27 @@ public class KnowledgeTaskAsyncExecutor {
         }
     }
 
-    private String loadContent(KnowledgeRevisionPo revision) throws Exception {
+    private ChunkingResult chunkRevision(KnowledgeRevisionPo revision) throws Exception {
+        ChunkingProfile profile = ChunkingProfile.defaults(doclingProperties.getChunkingMaxTokens());
         if ("FAQ".equals(revision.getSourceType())) {
-            return "# " + revision.getFaqQuestion() + "\n\n" + revision.getFaqAnswer();
+            List<ChunkContent> chunks = knowledgeChunkPolicy.chunkFaq(
+                revision.getFaqQuestion(), revision.getFaqAnswer(), profile);
+            String markdown = "# " + Objects.requireNonNullElse(revision.getFaqQuestion(), "")
+                + "\n\n" + Objects.requireNonNullElse(revision.getFaqAnswer(), "");
+            return new ChunkingResult(markdown, chunks, KnowledgeChunkPolicy.PARSER_FAQ);
         }
         SourceFileKind kind = SourceFileKind.fromStored(revision.getSourceFileName(), revision.getSourceContentType());
         if (kind == null) {
             throw new IllegalStateException("unsupported source file kind");
         }
         try (InputStream source = knowledgeStorageClient.openSource(revision.getSourceStoragePath())) {
-            if (!kind.requiresDocling()) {
-                return new String(source.readAllBytes(), StandardCharsets.UTF_8);
-            }
-            log.info("PROCESS docling parse start: revisionId={}, fileName={}",
-                revision.getId(), revision.getSourceFileName());
-            ParsedDocument parsed = doclingClient.parse(source,
-                new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()));
-            return parsed.markdown().isBlank() ? parsed.text() : parsed.markdown();
+            log.info("PROCESS docling hybrid chunk start: revisionId={}, fileName={}, fromFormat={}",
+                revision.getId(), revision.getSourceFileName(), kind.doclingFromFormat());
+            return doclingClient.chunkFile(
+                source,
+                new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()),
+                kind.doclingFromFormat(),
+                profile);
         }
-    }
-
-    private java.util.List<ParsedChunk> chunks(String text) throws Exception {
-        var result = new ArrayList<ParsedChunk>();
-        for (int start = 0, no = 1; start < text.length(); start += 1200, no++) {
-            int end = Math.min(text.length(), start + 1200); String part = text.substring(start, end);
-            String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(part.getBytes(StandardCharsets.UTF_8)));
-            result.add(new ParsedChunk(no, "char:" + start + ':' + end, hash, part.split("\\s+").length));
-        }
-        return result;
     }
 }
