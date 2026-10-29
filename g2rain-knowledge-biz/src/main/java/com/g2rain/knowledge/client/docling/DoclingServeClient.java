@@ -8,7 +8,9 @@ import com.g2rain.knowledge.domain.ChunkContent;
 import com.g2rain.knowledge.domain.ChunkingProfile;
 import com.g2rain.knowledge.domain.ChunkingResult;
 import com.g2rain.knowledge.domain.KnowledgeChunkPolicy;
+import com.g2rain.knowledge.domain.TitlePaths;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -17,6 +19,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +32,7 @@ import java.util.Set;
 /**
  * Adapter for Docling Serve v1 convert and HybridChunker endpoints.
  */
+@Slf4j
 @Component
 public class DoclingServeClient implements DoclingClient {
     /**
@@ -72,8 +76,22 @@ public class DoclingServeClient implements DoclingClient {
                 .retrieve()
                 .body(DoclingConvertResponse.class);
             return normalizeConvert(response);
+        } catch (RestClientResponseException exception) {
+            log.error("Docling convert HTTP error: status={}, fileName={}, baseUrl={}, bodySnippet={}",
+                exception.getStatusCode().value(),
+                metadata.originalFileName(),
+                properties.getBaseUrl(),
+                snippet(exception.getResponseBodyAsString()),
+                exception);
+            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED, exception);
         } catch (IOException | RestClientException exception) {
-            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED);
+            log.error("Docling convert failed: fileName={}, baseUrl={}, causeType={}, causeMessage={}",
+                metadata.originalFileName(),
+                properties.getBaseUrl(),
+                exception.getClass().getSimpleName(),
+                exception.getMessage(),
+                exception);
+            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED, exception);
         }
     }
 
@@ -81,9 +99,12 @@ public class DoclingServeClient implements DoclingClient {
     public ChunkingResult chunkFile(InputStream content, SourceMetadata metadata, String fromFormat,
                                     ChunkingProfile profile) {
         if (Objects.isNull(content) || Objects.isNull(metadata) || isBlank(properties.getBaseUrl())) {
+            log.error("Docling hybrid chunk not configured: contentNull={}, metadataNull={}, baseUrlBlank={}",
+                content == null, metadata == null, isBlank(properties.getBaseUrl()));
             throw new BusinessException(KnowledgeErrorCode.DOCLING_NOT_CONFIGURED);
         }
         if (isBlank(fromFormat)) {
+            log.error("Docling hybrid chunk missing fromFormat: fileName={}", metadata.originalFileName());
             throw new BusinessException(KnowledgeErrorCode.DOCLING_INVALID_RESPONSE);
         }
         ChunkingProfile effective = profile == null
@@ -91,6 +112,8 @@ public class DoclingServeClient implements DoclingClient {
             : profile;
         try {
             byte[] bytes = content.readAllBytes();
+            log.info("Docling hybrid chunk request: fileName={}, fromFormat={}, bytes={}, maxTokens={}, baseUrl={}",
+                metadata.originalFileName(), fromFormat, bytes.length, effective.maxTokens(), properties.getBaseUrl());
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("files", new NamedByteArrayResource(bytes, metadata.originalFileName()));
             body.add("include_converted_doc", "true");
@@ -115,10 +138,48 @@ public class DoclingServeClient implements DoclingClient {
                 .body(body)
                 .retrieve()
                 .body(ChunkDocumentResponse.class);
-            return normalizeChunk(response);
+            ChunkingResult result = normalizeChunk(response);
+            log.info("Docling hybrid chunk ok: fileName={}, chunkCount={}, processingTime={}",
+                metadata.originalFileName(),
+                result.chunks().size(),
+                response == null ? null : response.processingTime());
+            return result;
+        } catch (RestClientResponseException exception) {
+            log.error("Docling hybrid chunk HTTP error: status={}, fileName={}, fromFormat={}, bytesApprox={}, baseUrl={}, bodySnippet={}",
+                exception.getStatusCode().value(),
+                metadata.originalFileName(),
+                fromFormat,
+                metadata.declaredSize(),
+                properties.getBaseUrl(),
+                snippet(exception.getResponseBodyAsString()),
+                exception);
+            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED, exception);
+        } catch (BusinessException exception) {
+            log.error("Docling hybrid chunk business failure: fileName={}, fromFormat={}, errorCode={}, errorMessage={}",
+                metadata.originalFileName(),
+                fromFormat,
+                exception.getErrorCode(),
+                exception.getErrorMessage(),
+                exception);
+            throw exception;
         } catch (IOException | RestClientException exception) {
-            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED);
+            log.error("Docling hybrid chunk failed: fileName={}, fromFormat={}, baseUrl={}, causeType={}, causeMessage={}",
+                metadata.originalFileName(),
+                fromFormat,
+                properties.getBaseUrl(),
+                exception.getClass().getSimpleName(),
+                exception.getMessage(),
+                exception);
+            throw new BusinessException(KnowledgeErrorCode.DOCLING_OPERATION_FAILED, exception);
         }
+    }
+
+    private static String snippet(String body) {
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+        String compact = body.replaceAll("\\s+", " ").trim();
+        return compact.length() <= 500 ? compact : compact.substring(0, 500) + "...";
     }
 
     private RestClient client() {
@@ -164,7 +225,7 @@ public class DoclingServeClient implements DoclingClient {
             if (rawText.isBlank()) {
                 throw new BusinessException(KnowledgeErrorCode.DOCLING_INVALID_RESPONSE);
             }
-            String titlePath = joinHeadings(item.headings());
+            String titlePath = TitlePaths.toJson(item.headings());
             Integer pageStart = null;
             Integer pageEnd = null;
             if (item.pageNumbers() != null && !item.pageNumbers().isEmpty()) {
@@ -210,17 +271,6 @@ public class DoclingServeClient implements DoclingClient {
             }
         }
         return "";
-    }
-
-    private static String joinHeadings(List<String> headings) {
-        if (headings == null || headings.isEmpty()) {
-            return null;
-        }
-        List<String> cleaned = headings.stream()
-            .filter(h -> h != null && !h.isBlank())
-            .map(String::trim)
-            .toList();
-        return cleaned.isEmpty() ? null : String.join(" > ", cleaned);
     }
 
     private static String nullToEmpty(String value) {

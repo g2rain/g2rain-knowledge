@@ -59,7 +59,7 @@ class DoclingServeClientTest {
         assertEquals(12, chunk.tokenCount());
         assertEquals(2, chunk.pageStart());
         assertEquals(3, chunk.pageEnd());
-        assertEquals("Head > Sub", chunk.titlePath());
+        assertEquals("[\"Head\",\"Sub\"]", chunk.titlePath());
         assertTrue(chunk.contentSha256().length() == 64);
     }
 

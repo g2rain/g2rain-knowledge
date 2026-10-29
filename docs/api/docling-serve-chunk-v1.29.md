@@ -54,7 +54,7 @@ knowledge FILE 白名单与 Docling 映射：
 | `text` | 带结构上下文 → `embeddingText` |
 | `raw_text` | 原文 → `rawText`；缺省时回退 `text` |
 | `num_tokens` | → `tokenCount` |
-| `headings` | → `titlePath`（` > ` 连接） |
+| `headings` | → `title_path` JSON 数组，如 `["Head","Sub"]`；展示时再拼为 `Head > Sub` |
 | `page_numbers` | → `pageStart` / `pageEnd`（min/max） |
 
 ### `documents[].content`

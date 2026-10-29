@@ -31,6 +31,7 @@ import com.g2rain.knowledge.vo.KnowledgeReleaseVo;
 import com.g2rain.mybatis.pagination.PageContext;
 import com.g2rain.mybatis.pagination.model.Page;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ import java.util.Objects;
  *
  * @author G2rain Generator
  */
+@Slf4j
 @Service(value = "knowledgeReleaseServiceImpl")
 public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
 
@@ -160,12 +162,12 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
         }
         Long previousRevisionId = release.getActiveRevisionId();
 
-        // The target has already passed the full staged-index reconciliation. Publishing only flips searchable.
-        milvusKnowledgeClient.setSearchable(milvusProperties.getCollectionName(), target.getOrganId(), target.getId(), true);
-        if (theme != null) {
-            milvusKnowledgeClient.setVisibility(milvusProperties.getCollectionName(), target.getOrganId(),
-                target.getId(), KnowledgeVisibility.parse(theme.getVisibility()).name());
-        }
+        // One Milvus round-trip: searchable=true + theme visibility (avoids double Flush under rate=0.1).
+        String visibility = theme == null
+            ? "PRIVATE"
+            : KnowledgeVisibility.parse(theme.getVisibility()).name();
+        milvusKnowledgeClient.enablePublishedRevision(
+            milvusProperties.getCollectionName(), target.getOrganId(), target.getId(), visibility);
 
         LocalDateTime now = Moments.now();
         KnowledgeReleasePo releaseUpdate = new KnowledgeReleasePo();
@@ -187,7 +189,14 @@ public class KnowledgeReleaseServiceImpl implements KnowledgeReleaseService {
             if (previous != null) {
                 knowledgeAccessService.assertSameOrgan(previous.getOrganId());
                 updateRevisionStatus(previous, previous.getVersion(), KnowledgeRevisionStatus.DEPRECATED.name(), now);
-                milvusKnowledgeClient.setSearchable(milvusProperties.getCollectionName(), target.getOrganId(), previousRevisionId, false);
+                // Best-effort: MySQL already switched; do not fail publish if old Milvus projection lags.
+                try {
+                    milvusKnowledgeClient.setSearchable(
+                        milvusProperties.getCollectionName(), target.getOrganId(), previousRevisionId, false);
+                } catch (RuntimeException exception) {
+                    log.warn("disable previous milvus revision failed after publish: organId={}, previousRevisionId={}, reason={}",
+                        target.getOrganId(), previousRevisionId, exception.getMessage());
+                }
             }
         }
         return release.getId();
