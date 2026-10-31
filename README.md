@@ -9,7 +9,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
-G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、版本管理、受控发布、检索证据与受控问答能力。
+G2rain（谷雨）开源智能体平台的知识库服务，为客服和智能体应用提供可追溯的知识接入、版本管理、受控发布、检索证据与受控问答能力。
 
 服务以 MySQL 作为知识元数据和发布状态的权威来源，以 Milvus 作为可重建的向量检索投影。调用方只能获得经组织隔离、活动版本和引用完整性校验后的证据，不接触存储路径、向量集合或模型供应商接口。
 
@@ -18,6 +18,8 @@ G2rain 的知识库服务，为客服和 Agent 提供可追溯的知识接入、
 ## v1.0.0 稳定版
 
 维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
+
+**部署状态：已可用。** 现有版本可在企业环境私有部署，按项目文档配置平台和外部依赖。架构采用、后续开发与未完成的验证项分别记录，不将它们等同于产品尚未发布。
 
 ## 当前能力
 
@@ -65,6 +67,8 @@ mvn -pl g2rain-knowledge-biz -am test
 2026-10-19 本地 `mvn clean verify` 通过，40 个测试无失败、错误或跳过；维护者另确认已在服务器端验证通过。服务器验证与本地测试分开记录，完整并发、恢复与延期项见[发布说明](docs/releases/v1.0.0.md)。
 
 ## 文档
+
+容器镜像使用 `ghcr.io/g2rain/g2rain-knowledge`。GitHub Actions 仅在推送 `v1.0.1` 这类稳定版 tag 时构建并发布镜像。本地构建运行 `bash build.sh <tag>`，构建并推送运行 `bash build.sh <tag> push`；认证、版本选择与部署配置见[部署说明](docs/operations/deployment.md#容器镜像发布ghcr)。
 
 - [工程文档入口](docs/index.md)
 - [项目事实与验证状态](docs/project.yaml)

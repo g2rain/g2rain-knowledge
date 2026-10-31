@@ -18,13 +18,13 @@
 
     <name>G2rain Knowledge</name>
     <description>
-        谷雨 SaaS 平台知识库
+        G2rain（谷雨）开源智能体平台的知识库服务，负责知识文件与常见问题的接入、版本管理、审核和发布，并提供基于已发布知识的检索证据、引用与受控问答能力，为客服和智能体应用提供可追溯的知识支持。
     </description>
 
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -56,7 +56,7 @@
     </modules>
 
     <properties>
-        <revision>1.0.0</revision>
+        <revision>1.0.1</revision>
         <!--
                     Jackson 3 统一升级至 3.2.4，覆盖 Spring Boot 依赖管理中的旧版本，
                     修复传递依赖引入的旧版本问题，并满足安全扫描要求。

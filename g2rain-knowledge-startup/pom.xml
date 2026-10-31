@@ -65,12 +65,15 @@
                 <version>${jib.maven.plugin.version}</version>
                 <configuration>
                     <from>
-                        <image>docker://eclipse-temurin:25.0.4.1_1-jre</image>
+                        <image>eclipse-temurin:25.0.4.1_1-jre</image>
                     </from>
                     <to>
-                        <image>g2rain/g2rain-knowledge:${project.version}</image>
+                        <image>ghcr.io/g2rain/g2rain-knowledge:${project.version}</image>
                     </to>
                     <container>
+                        <labels>
+                            <org.opencontainers.image.source>https://github.com/g2rain/g2rain-knowledge</org.opencontainers.image.source>
+                        </labels>
                         <mainClass>com.g2rain.knowledge.Application</mainClass>
                         <ports>
                             <port>8080</port>
