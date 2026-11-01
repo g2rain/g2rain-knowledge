@@ -3,22 +3,30 @@ name: g2rain-knowledge
 repository: g2rain/g2rain-knowledge
 family: java-domain-service
 architectureType: knowledge-retrieval-service
-role: G2rain 客服与 Agent 知识库服务
-status: in-progress
+role: G2rain（谷雨）开源智能体平台的知识库服务
+status: released
+availability:
+  deployment: available
+  scope: 现有知识生命周期、检索与受控问答能力可私有部署使用；按版本文档配置平台与外部依赖
+  note: 产品可用状态、架构采用和验证覆盖分别记录；后续需求及可靠性延期不影响已发布状态
+development:
+  status: ongoing
+  note: 在已发布版本上持续迭代，活动需求见 documentation.activeRequirement
 
 architectureProfile:
   adoption: planned
-  reason: 本服务拥有独立知识领域数据并以 Java/Spring Boot 运行，采用 java-domain-service；已建立三模块工程并开始实现领域用例。
+  reason: 本服务拥有独立知识领域数据并以 Java/Spring Boot 运行，已实现三模块工程及领域主路径；架构采用仍按迁移审核登记，应用稳定版发布不自动改变采用状态。
 
 architectureBaseline:
   repository: https://github.com/g2rain/g2rain
   ref: architecture-v1.0.0
   profile: docs/architecture/profiles/java-domain-service
-  version: 1.0.0
+  version: 1.0.1
   deviations: docs/architecture/deviations.md
 
 evidence:
   verifiedImplementation: partially
+  note: partially 表示验证覆盖仍有缺口，不表示服务仅有设计或不可部署；已发布范围与服务器验证见 release
   sources:
     - pom.xml
     - g2rain-knowledge-api/
@@ -26,8 +34,8 @@ evidence:
     - g2rain-knowledge-startup/
     - docs/development/implementation-plan.md
   missing:
-    - deployment manifests
-    - Docling、Embedding、Rerank 与 Milvus 的已验证集成契约
+    - 部署升级、备份恢复与依赖故障的完整环境验证记录
+    - Docling、Embedding、Rerank 与 Milvus 的完整外部依赖集成验证记录
     - MySQL 事务、组织隔离与发布一致性的真实环境集成测试
     - 发布顺序修正、offline/reconcile、任务并发列接线
 
@@ -106,7 +114,7 @@ documentation:
 release:
   version: 1.0.0
   channel: stable
-  notes: docs/releases/v1.0.0.md
+  notes: docs/releases/v1.0.1.md
   pairedRepository: g2rain/g2rain-knowledge-app
   pairedVersion: 1.0.0
   verification:
