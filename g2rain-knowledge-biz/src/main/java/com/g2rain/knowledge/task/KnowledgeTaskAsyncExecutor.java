@@ -1,5 +1,6 @@
 package com.g2rain.knowledge.task;
 
+import com.g2rain.common.exception.BusinessException;
 import com.g2rain.common.utils.Moments;
 import com.g2rain.common.web.PrincipalContext;
 import com.g2rain.common.web.PrincipalContextHolder;
@@ -93,8 +94,10 @@ public class KnowledgeTaskAsyncExecutor {
             return;
         }
         try {
-            log.info("PROCESS chunk start: taskId={}, revisionId={}, sourceType={}",
-                task.getId(), revision.getId(), revision.getSourceType());
+            log.info("PROCESS chunk start: taskId={}, revisionId={}, sourceType={}, fileName={}, contentType={}, fileSize={}, sourcePath={}",
+                task.getId(), revision.getId(), revision.getSourceType(),
+                revision.getSourceFileName(), revision.getSourceContentType(),
+                revision.getSourceFileSize(), revision.getSourceStoragePath());
             ChunkingResult chunking = chunkRevision(revision);
             knowledgeChunkPolicy.validateManifest(chunking.chunks());
             log.info("PROCESS write parsed start: taskId={}, revisionId={}, chunkCount={}",
@@ -109,10 +112,15 @@ public class KnowledgeTaskAsyncExecutor {
             knowledgeTaskDao.complete(organId, task.getId(), workerId, task.getVersion() + 1, Moments.now());
             log.info("PROCESS completed: taskId={}, revisionId={}, workerId={}", task.getId(), revision.getId(), workerId);
         } catch (Exception exception) {
-            log.error("PROCESS failed: taskId={}, revisionId={}, workerId={}",
-                task.getId(), task.getRevisionId(), workerId, exception);
+            String detail = summarizeFailure(exception);
+            log.error("PROCESS failed: taskId={}, revisionId={}, organId={}, workerId={}, fileName={}, sourcePath={}, detail={}",
+                task.getId(), task.getRevisionId(), organId, workerId,
+                revision.getSourceFileName(), revision.getSourceStoragePath(), detail, exception);
             knowledgeProcessPersistenceService.fail(task.getRevisionId());
-            knowledgeTaskDao.fail(organId, task.getId(), workerId, task.getVersion() + 1, "PROCESS_PARSE_FAILED", "文档解析处理失败", Moments.now());
+            knowledgeTaskDao.fail(organId, task.getId(), workerId, task.getVersion() + 1,
+                "PROCESS_PARSE_FAILED",
+                truncate("文档解析处理失败: " + detail, 1024),
+                Moments.now());
         }
     }
 
@@ -127,16 +135,51 @@ public class KnowledgeTaskAsyncExecutor {
         }
         SourceFileKind kind = SourceFileKind.fromStored(revision.getSourceFileName(), revision.getSourceContentType());
         if (kind == null) {
-            throw new IllegalStateException("unsupported source file kind");
+            throw new IllegalStateException("unsupported source file kind: fileName="
+                + revision.getSourceFileName() + ", contentType=" + revision.getSourceContentType());
+        }
+        if (revision.getSourceStoragePath() == null || revision.getSourceStoragePath().isBlank()) {
+            throw new IllegalStateException("source storage path missing for revisionId=" + revision.getId());
         }
         try (InputStream source = knowledgeStorageClient.openSource(revision.getSourceStoragePath())) {
-            log.info("PROCESS docling hybrid chunk start: revisionId={}, fileName={}, fromFormat={}",
-                revision.getId(), revision.getSourceFileName(), kind.doclingFromFormat());
+            log.info("PROCESS docling hybrid chunk start: revisionId={}, fileName={}, contentType={}, fileSize={}, fromFormat={}, doclingBaseUrl={}",
+                revision.getId(), revision.getSourceFileName(), revision.getSourceContentType(),
+                revision.getSourceFileSize(), kind.doclingFromFormat(), doclingProperties.getBaseUrl());
             return doclingClient.chunkFile(
                 source,
                 new SourceMetadata(revision.getSourceFileName(), revision.getSourceContentType(), revision.getSourceFileSize()),
                 kind.doclingFromFormat(),
                 profile);
         }
+    }
+
+    private static String summarizeFailure(Throwable exception) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = exception;
+        int depth = 0;
+        while (current != null && depth < 6) {
+            if (depth > 0) {
+                builder.append(" | caused by ");
+            }
+            if (current instanceof BusinessException businessException) {
+                builder.append(businessException.getErrorCode())
+                    .append(':')
+                    .append(Objects.requireNonNullElse(businessException.getErrorMessage(), current.getClass().getSimpleName()));
+            } else {
+                builder.append(current.getClass().getSimpleName())
+                    .append(':')
+                    .append(Objects.requireNonNullElse(current.getMessage(), ""));
+            }
+            current = current.getCause();
+            depth++;
+        }
+        return truncate(builder.toString().replaceAll("\\s+", " ").trim(), 900);
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= max ? value : value.substring(0, max);
     }
 }

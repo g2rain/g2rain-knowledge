@@ -1,13 +1,13 @@
 # g2rain-knowledge 工程文档
 
-本仓库已实现 API/Biz/Startup 三模块工程、九张表的生成 CRUD、知识生命周期、处理、检索和受控问答，以及 RQ-005 保存契约升级与 RQ-006 受控原文件下载的后端主路径。`mvn clean verify` 最近一次本地构建于 2026-10-21 通过；2026-10-19 的发布记录声明 40 个测试通过。真实 MySQL/Milvus、外部模型与部署环境的集成验证仍未完成。代码盘点、剩余整改项和验收顺序见开发执行计划。
+本仓库已实现 API/Biz/Startup 三模块工程、九张表的生成 CRUD、知识生命周期、处理、检索和受控问答，以及 RQ-005 / RQ-006 / RQ-008（共享范围与公共知识）后端与配套 app 主路径。存量环境升级须按文档完成 MySQL 列与 Milvus `visibility` 原地加字段后再发版。
 
 ## 入口
 
 - [项目事实与状态](project.yaml)
 - [Agent 工作约束](../AGENTS.md)
 - [需求入口](requirements/README.md)
-- [公共知识共享升级方案（RQ-008，待实施）](requirements/RQ-008-public-knowledge-sharing.md)
+- [公共知识共享升级方案（RQ-008，已实现）](requirements/RQ-008-public-knowledge-sharing.md)
 
 ## 架构
 
@@ -38,6 +38,7 @@
 - [完成定义](development/definition-of-done.md)
 - [配置](operations/configuration.md)
 - [部署与运行要求](operations/deployment.md)
+- [Milvus visibility 原地加字段（RQ-008）](operations/milvus-visibility-inplace.md)
 - [排障与恢复](operations/troubleshooting.md)
 - [备份、恢复与索引重建](operations/backup-and-recovery.md)
 

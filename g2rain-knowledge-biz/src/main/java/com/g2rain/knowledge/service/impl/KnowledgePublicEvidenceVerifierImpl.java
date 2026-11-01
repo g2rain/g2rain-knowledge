@@ -12,6 +12,7 @@ import com.g2rain.knowledge.dao.po.KnowledgeItemPo;
 import com.g2rain.knowledge.dao.po.KnowledgeReleasePo;
 import com.g2rain.knowledge.dao.po.KnowledgeRevisionPo;
 import com.g2rain.knowledge.domain.ContentHashes;
+import com.g2rain.knowledge.domain.TitlePaths;
 import com.g2rain.knowledge.dto.KnowledgeChunkSelectDto;
 import com.g2rain.knowledge.dto.KnowledgeReleaseSelectDto;
 import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
@@ -115,7 +116,7 @@ public class KnowledgePublicEvidenceVerifierImpl implements KnowledgePublicEvide
         evidence.setVisibility(KnowledgeVisibility.parse(item.getVisibility()).name());
         evidence.setContent(body.toString());
         evidence.setTitle(item.getKnowledgeName());
-        evidence.setSection(first.getTitlePath());
+        evidence.setSection(TitlePaths.toDisplay(first.getTitlePath()));
         evidence.setPage(first.getPageStart());
         evidence.setRevisionNo(revision.getRevisionNo());
         evidence.setCitation(item.getKnowledgeName() + " " + revision.getRevisionNo());
@@ -182,10 +183,11 @@ public class KnowledgePublicEvidenceVerifierImpl implements KnowledgePublicEvide
         evidence.setVisibility(KnowledgeVisibility.parse(item.getVisibility()).name());
         evidence.setContent(content);
         evidence.setTitle(item.getKnowledgeName());
-        evidence.setSection(chunk.getTitlePath());
+        String section = TitlePaths.toDisplay(chunk.getTitlePath());
+        evidence.setSection(section);
         evidence.setPage(chunk.getPageStart());
         evidence.setRevisionNo(revision.getRevisionNo());
-        String location = chunk.getPageStart() == null ? chunk.getTitlePath() : "第" + chunk.getPageStart() + " 页";
+        String location = chunk.getPageStart() == null ? section : "第" + chunk.getPageStart() + " 页";
         evidence.setCitation(item.getKnowledgeName() + " " + revision.getRevisionNo() + "，"
             + (location == null || location.isBlank() ? "内容片段" : location));
         evidence.setScore(score);

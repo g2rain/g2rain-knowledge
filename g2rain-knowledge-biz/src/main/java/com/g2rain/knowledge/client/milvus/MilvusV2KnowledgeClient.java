@@ -44,7 +44,7 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             List<JsonObject> data = entities.stream().map(this::json).toList();
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(data).build());
-            flush(collectionName);
+            flushBestEffort(collectionName);
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -117,22 +117,38 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
 
     @Override
     public void setSearchable(String collectionName, Long organId, Long revisionId, boolean searchable) {
+        upsertScalars(collectionName, organId, revisionId, searchable, null, true);
+    }
+
+    @Override
+    public void enablePublishedRevision(String collectionName, Long organId, Long revisionId, String visibility) {
+        upsertScalars(collectionName, organId, revisionId, true, visibility, true);
+        log.info("enablePublishedRevision upserted: collection={}, organId={}, revisionId={}, visibility={}",
+            collectionName, organId, revisionId, visibility);
+    }
+
+    /**
+     * @param visibilityOverride null keeps existing visibility; non-null overwrites
+     * @param confirmSearchable when true, verifies searchable after upsert (STRONG query)
+     */
+    private void upsertScalars(String collectionName, Long organId, Long revisionId,
+                               boolean searchable, String visibilityOverride, boolean confirmSearchable) {
         try {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
-            // Upsert requires the full non-nullable row; only flipping searchable is rejected by Milvus.
+            // Upsert requires the full non-nullable row; scalar-only patch is rejected by Milvus.
             var rows = queryRevision(collectionName, filter, FULL_ROW_FIELDS);
             List<JsonObject> changes = rows.stream()
-                .map(row -> copyRow(row.getEntity(), searchable, null))
+                .map(row -> copyRow(row.getEntity(), searchable, visibilityOverride))
                 .toList();
             if (changes.isEmpty()) {
-                log.warn("setSearchable found no entities: collection={}, organId={}, revisionId={}, searchable={}",
+                log.warn("upsertScalars found no entities: collection={}, organId={}, revisionId={}, searchable={}",
                     collectionName, organId, revisionId, searchable);
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(changes).build());
-            flush(collectionName);
-            if (!confirmSearchable(collectionName, filter, changes.size(), searchable)) {
-                log.warn("setSearchable confirm failed after upsert+flush: collection={}, organId={}, revisionId={}, expectedSearchable={}, expectedCount={}",
+            flushBestEffort(collectionName);
+            if (confirmSearchable && !confirmSearchable(collectionName, filter, changes.size(), searchable)) {
+                log.warn("upsertScalars confirm failed: collection={}, organId={}, revisionId={}, expectedSearchable={}, expectedCount={}",
                     collectionName, organId, revisionId, searchable, changes.size());
                 throw new BusinessException(KnowledgeErrorCode.MILVUS_INVALID_RESPONSE);
             }
@@ -173,8 +189,17 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
             .build()).getQueryResults();
     }
 
-    private void flush(String collectionName) {
-        client().flush(FlushReq.builder().collectionNames(List.of(collectionName)).build());
+    /**
+     * Flush is rate-limited hard on standalone (~0.1/s). Prefer STRONG query confirm;
+     * never fail the business call solely because Flush was throttled.
+     */
+    private void flushBestEffort(String collectionName) {
+        try {
+            client().flush(FlushReq.builder().collectionNames(List.of(collectionName)).build());
+        } catch (RuntimeException exception) {
+            log.warn("milvus flush skipped (will rely on strong consistency): collection={}, reason={}",
+                collectionName, exception.getMessage());
+        }
     }
 
     @Override
@@ -182,16 +207,16 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
         try {
             String filter = "organ_id == " + organId + " && revision_id == " + revisionId;
             var rows = queryRevision(collectionName, filter, FULL_ROW_FIELDS);
-            List<JsonObject> changes = rows.stream()
-                .map(row -> copyRow(row.getEntity(), asBoolean(row.getEntity().get("searchable")), visibility))
-                .toList();
-            if (changes.isEmpty()) {
+            if (rows.isEmpty()) {
                 log.warn("setVisibility found no entities: collection={}, organId={}, revisionId={}, visibility={}",
                     collectionName, organId, revisionId, visibility);
                 return;
             }
+            List<JsonObject> changes = rows.stream()
+                .map(row -> copyRow(row.getEntity(), asBoolean(row.getEntity().get("searchable")), visibility))
+                .toList();
             client().upsert(UpsertReq.builder().collectionName(collectionName).data(changes).build());
-            flush(collectionName);
+            flushBestEffort(collectionName);
             log.info("setVisibility upserted: collection={}, organId={}, revisionId={}, visibility={}, count={}",
                 collectionName, organId, revisionId, visibility, changes.size());
         } catch (BusinessException exception) {

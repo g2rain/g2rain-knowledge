@@ -74,7 +74,7 @@ organ_id == <trusted_organ_id> && searchable == true
 searchable == true && (organ_id == <trusted_organ_id> || visibility == "PUBLIC")
 ```
 
-部署主路径：现有 collection **原地**增加 `visibility` 字段；存量回填 `PRIVATE` 后与 MySQL 对账，再开放跨机构公共召回。
+部署主路径：现有 collection **原地**增加 `visibility` 字段；存量按默认值回填后与 MySQL 对账，再开放跨机构公共召回。`g2rain-deploy` 下的具体 REST/`docker exec` 步骤见 [milvus-visibility-inplace.md](../operations/milvus-visibility-inplace.md)。新建 collection 的 schema 模板为 deploy 侧 `config/milvus/knowledge-collection.json`（须含 `visibility`）；已存在的同名表不会被 init 脚本重建或改字段。
 标签匹配语义：
 
 ```text

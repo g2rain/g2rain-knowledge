@@ -1,8 +1,8 @@
 # RQ-008：基于共享范围的公共知识升级方案
 
-状态：待实施方案。更新日期：2026-10-27。
+状态：已实现（后端 + knowledge-app 主路径）。更新日期：2026-10-28。
 
-本方案替代此前的系统公共标签设计。使用 `visibility` 控制共享范围，分类用于目录组织，标签用于业务筛选；`SYSTEM_PUBLIC` / `system_public` 均不再作为公共权限标识。本文只更新方案，不表示功能已实现，不改变当前活动需求。复用已完成的 HybridChunker 链路。
+本方案替代此前的系统公共标签设计。使用 `visibility` 控制共享范围，分类用于目录组织，标签用于业务筛选；`SYSTEM_PUBLIC` / `system_public` 均不再作为公共权限标识。复用已完成的 HybridChunker 链路。存量环境升级运维见 [Milvus visibility 原地加字段](../operations/milvus-visibility-inplace.md) 与 [部署与运行要求](../operations/deployment.md)。
 
 ## 0. 已冻结决策（实施按此执行）
 
@@ -193,4 +193,4 @@ MySQL 批量复核归属、关联、未删除、活动版本、发布/索引及 
 - 并发发布/回滚/公开撤销/乱序任务后活动内容与投影一致。
 - 业务标签对两类候选同等过滤；首期 VO 可含 organId/categoryId。
 
-实施后执行 `mvn -pl g2rain-knowledge-biz -am test` 与 `mvn clean verify`，并完成至少两个机构（含 adminCompany true/false）的真实集成验证。本文档更新只检查文档差异，不声明实现或测试已完成。
+实施后执行 `mvn -pl g2rain-knowledge-biz -am test` 与 `mvn clean verify`，并完成至少两个机构（含 adminCompany true/false）的真实集成验证。存量环境 MySQL/Milvus 升级步骤见 [milvus-visibility-inplace.md](../operations/milvus-visibility-inplace.md)。

@@ -223,7 +223,8 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
         knowledgeAccessService.assertSameOrgan(existing.getOrganId());
         knowledgePublicWriteGuard.requireIfPublic(existing.getVisibility(), target.name());
 
-        if (!Objects.equals(existing.getVersion(), dto.getExpectedVersion())) {
+        Integer expectedVersion = Objects.requireNonNullElse(dto.getExpectedVersion(), existing.getVersion());
+        if (!Objects.equals(existing.getVersion(), expectedVersion)) {
             throw new BusinessException(KnowledgeErrorCode.VISIBILITY_VERSION_CONFLICT);
         }
         String before = KnowledgeVisibility.parse(existing.getVisibility()).name();
@@ -233,7 +234,7 @@ public class KnowledgeItemServiceImpl implements KnowledgeItemService {
 
         KnowledgeItemPo update = new KnowledgeItemPo();
         update.setId(existing.getId());
-        update.setVersion(dto.getExpectedVersion());
+        update.setVersion(expectedVersion);
         update.setVisibility(target.name());
         update.setUpdateTime(Moments.now());
         int rows = knowledgeItemDao.updateByVersion(update);

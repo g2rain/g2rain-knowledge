@@ -21,6 +21,7 @@ import com.g2rain.knowledge.enums.KnowledgeEnablementStatus;
 import com.g2rain.knowledge.enums.KnowledgeErrorCode;
 import com.g2rain.knowledge.enums.KnowledgeRevisionStatus;
 import com.g2rain.knowledge.enums.KnowledgeSourceType;
+import com.g2rain.knowledge.enums.KnowledgeVisibility;
 import com.g2rain.knowledge.service.KnowledgeAccessService;
 import com.g2rain.knowledge.service.KnowledgeDraftService;
 import com.g2rain.knowledge.service.KnowledgeDraftTxService;
@@ -78,6 +79,7 @@ public class KnowledgeDraftServiceImpl implements KnowledgeDraftService {
         item.setDescription(dto.getDescription());
         item.setPriority(Objects.requireNonNullElse(dto.getPriority(), 0));
         item.setTagsJson(knowledgeTagPolicy.asJson(knowledgeTagGovernanceService.validateDraftTags(dto.getTags())));
+        item.setVisibility(KnowledgeVisibility.PRIVATE.name());
         item.setCreateUserId(knowledgeAccessService.requireUserId());
         item.setCreateTime(now);
         item.setUpdateTime(now);

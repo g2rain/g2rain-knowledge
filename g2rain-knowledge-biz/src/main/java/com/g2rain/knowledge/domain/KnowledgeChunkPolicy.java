@@ -31,7 +31,8 @@ public class KnowledgeChunkPolicy {
                 ? "# " + q + "\n\n" + answerParts.get(i)
                 : answerParts.get(i);
             String embedding = "# " + q + "\n\n" + answerParts.get(i);
-            chunks.add(build(no, "chunk:" + no, raw, embedding, estimateTokens(embedding), null, null, q));
+            chunks.add(build(no, "chunk:" + no, raw, embedding, estimateTokens(embedding), null, null,
+                TitlePaths.toJson(List.of(q))));
         }
         return List.copyOf(chunks);
     }
