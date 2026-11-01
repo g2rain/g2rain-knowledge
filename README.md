@@ -90,6 +90,8 @@ mvn -pl g2rain-knowledge-biz -am test
 
 欢迎通过 Issue、Discussion 和 Pull Request 参与 g2rain 建设。
 
+日常开发从 `develop` 创建 `feature/*` 分支，功能完成后通过 Pull Request 合入 `develop`；准备发布时再通过 Pull Request 将 `develop` 合入 `main`。版本 tag 应创建在已验证并合入 `main` 的提交上；推送稳定版 tag 会触发 GHCR 镜像构建与发布。
+
 代码贡献前请尽量补充必要的测试和文档，并确保构建、测试与静态检查通过。提交代码时，请同步更新受影响的 `docs` 文档；新增或改变长期架构决策时，在 `docs/decisions` 中增加 ADR。
 
 提交前至少执行：
