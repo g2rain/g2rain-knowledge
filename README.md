@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-25-437291?logo=openjdk&logoColor=white)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
 G2rain（谷雨）开源智能体平台的知识库服务，为客服和智能体应用提供可追溯的知识接入、版本管理、受控发布、检索证据与受控问答能力。
@@ -15,9 +15,9 @@ G2rain（谷雨）开源智能体平台的知识库服务，为客服和智能�
 
 [官网](http://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
 
-## v1.0.0 稳定版
+## 当前版本：v1.0.1
 
-维护者已确认服务器端验证通过；2026-10-19 本地完整 Maven 构建与 40 个测试通过。配套使用 [g2rain-knowledge-app v1.0.0](https://github.com/g2rain/g2rain-knowledge-app/releases/tag/v1.0.0)。版本范围、配置与延期项见[发布说明](docs/releases/v1.0.0.md)。
+版本变更与镜像发布说明见 [v1.0.1 发布记录](docs/releases/v1.0.1.md)。首个稳定版本 v1.0.0 的历史验证记录见[原发布说明](docs/releases/v1.0.0.md)。配套前端版本及兼容信息以 [g2rain-knowledge-app](https://github.com/g2rain/g2rain-knowledge-app) 的发布记录为准。
 
 **部署状态：已可用。** 现有版本可在企业环境私有部署，按项目文档配置平台和外部依赖。架构采用、后续开发与未完成的验证项分别记录，不将它们等同于产品尚未发布。
 
@@ -89,6 +89,8 @@ mvn -pl g2rain-knowledge-biz -am test
 ## 贡献
 
 欢迎通过 Issue、Discussion 和 Pull Request 参与 g2rain 建设。
+
+日常开发从 `develop` 创建 `feature/*` 分支，功能完成后通过 Pull Request 合入 `develop`；准备发布时再通过 Pull Request 将 `develop` 合入 `main`。版本 tag 应创建在已验证并合入 `main` 的提交上；推送稳定版 tag 会触发 GHCR 镜像构建与发布。
 
 代码贡献前请尽量补充必要的测试和文档，并确保构建、测试与静态检查通过。提交代码时，请同步更新受影响的 `docs` 文档；新增或改变长期架构决策时，在 `docs/decisions` 中增加 ADR。
 
