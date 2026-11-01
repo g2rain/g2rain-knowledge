@@ -30,10 +30,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF_TYPE" == "tag" ]]
-          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          test -s "docs/releases/$GITHUB_REF_NAME.md"
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            echo "Expected a tag push; got ref type '$GITHUB_REF_TYPE'." >&2
+            exit 1
+          fi
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag '$GITHUB_REF_NAME' must use v<major>.<minor>.<patch> format." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Tag '$GITHUB_REF_NAME' points to a commit that is not on origin/main." >&2
+            exit 1
+          fi
+          if [[ ! -s "docs/releases/$GITHUB_REF_NAME.md" ]]; then
+            echo "Missing release notes: docs/releases/$GITHUB_REF_NAME.md. Add and push this file before creating the tag." >&2
+            exit 1
+          fi
           echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
           echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           echo "extra_tags=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
