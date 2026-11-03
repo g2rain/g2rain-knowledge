@@ -58,6 +58,9 @@ g2rain:
       connect-timeout: ${KNOWLEDGE_RERANK_CONNECT_TIMEOUT:5s}
       read-timeout: ${KNOWLEDGE_RERANK_READ_TIMEOUT:30s}
 
+springdoc:
+  default-flat-param-object: true
+
 management:
   endpoints:
     web:
