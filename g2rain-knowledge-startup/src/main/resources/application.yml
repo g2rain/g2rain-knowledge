@@ -58,6 +58,10 @@ g2rain:
       connect-timeout: ${KNOWLEDGE_RERANK_CONNECT_TIMEOUT:5s}
       read-timeout: ${KNOWLEDGE_RERANK_READ_TIMEOUT:30s}
 
+# g2rain-starter-spring-doc 已经实现, 但是未发版, 暂自行配置
+springdoc:
+  default-flat-param-object: true
+
 management:
   endpoints:
     web:
