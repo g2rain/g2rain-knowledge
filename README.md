@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-25-437291?logo=openjdk&logoColor=white)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
 G2rain（谷雨）开源智能体平台的知识库服务，为客服和智能体应用提供可追溯的知识接入、版本管理、受控发布、检索证据与受控问答能力。
@@ -15,9 +15,9 @@ G2rain（谷雨）开源智能体平台的知识库服务，为客服和智能�
 
 [官网](http://www.g2rain.com) · [完整文档](docs/index.md) · [接口与集成契约](docs/api/integration-contracts.md) · [架构说明](docs/architecture/overview.md) · [Issues](https://github.com/g2rain/g2rain/issues) · [Discussions](https://github.com/g2rain/g2rain/discussions)
 
-## 当前版本：v1.0.1
+## 当前版本：v1.0.0
 
-版本变更与镜像发布说明见 [v1.0.1 发布记录](docs/releases/v1.0.1.md)。首个稳定版本 v1.0.0 的历史验证记录见[原发布说明](docs/releases/v1.0.0.md)。配套前端版本及兼容信息以 [g2rain-knowledge-app](https://github.com/g2rain/g2rain-knowledge-app) 的发布记录为准。
+版本范围、历史验证记录与镜像发布说明见 [v1.0.0 发布记录](docs/releases/v1.0.0.md)。配套前端版本及兼容信息以 [g2rain-knowledge-app](https://github.com/g2rain/g2rain-knowledge-app) 的发布记录为准。
 
 **部署状态：已可用。** 现有版本可在企业环境私有部署，按项目文档配置平台和外部依赖。架构采用、后续开发与未完成的验证项分别记录，不将它们等同于产品尚未发布。
 
