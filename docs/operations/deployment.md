@@ -32,7 +32,9 @@ git push origin v1.0.1
 
 工作流使用 Ubuntu、Temurin JDK 25 与 Maven，先执行 `clean install`（含测试），成功后通过 Jib 上传；依赖从 Maven Central 解析，不依赖开发机本地 Maven 缓存。镜像默认使用 Jib 的 Linux amd64 平台。
 
-认证使用 GitHub 自动提供的 `GITHUB_TOKEN`，工作流已声明 `contents: read`、`packages: write`，无需添加 GHCR PAT Secret。仓库/组织须允许 Actions 创建和写入容器包；已有包须授予本仓库 Actions 写入权限。首次创建后检查包可见性，匿名拉取需明确设为 Public。权限说明见 [GitHub Actions 包发布文档](https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions)。
+认证使用 GitHub 自动提供的 `GITHUB_TOKEN`，工作流已声明 `contents: read`、`packages: write`，无需添加 GHCR PAT Secret。仓库/组织须允许 Actions 创建和写入容器包；已有包须授予本仓库 Actions 写入权限。
+
+首次镜像推送后，将包改为公开，供部署服务器匿名拉取：打开 GitHub 仓库页面右侧 **Packages → g2rain-knowledge**，进入包页面的 **Package settings → Change visibility → Public**，输入包名确认。公开设置对后续推送到同一包的版本持续生效，一般只需操作一次。若组织管理员禁用了可见性修改，联系管理员开放修改权限或代为设置。公开后的镜像任何人均可拉取，请勿向镜像中打包密钥、令牌或私有数据。权限说明见 [GitHub Actions 包发布文档](https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions)。
 
 发布成功后在对应运行摘要中查看镜像标签，并配置下文的 `KNOWLEDGE_IMAGE`。工作流只发布镜像，不会自动更新运行中的服务。
 
@@ -48,7 +50,7 @@ unset GHCR_TOKEN
 bash build.sh sha-$(git rev-parse --short=12 HEAD) push
 ```
 
-发布前确认工作区干净，以便 SHA 标签可追溯。脚本先执行整个工程的 `clean install`（包含测试），再通过 Jib 直接上传；上传无需运行 Docker daemon，Docker CLI 仅用于保存认证。基础镜像从容器仓库拉取。首次创建包后检查 GitHub Packages 的访问权限；新包默认私有，如需匿名拉取，在包设置中明确改为 Public。私有包的部署账号须登录 GHCR，拉取 Token 使用 `read:packages`。详情见 [GitHub Container registry 文档](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
+发布前确认工作区干净，以便 SHA 标签可追溯。脚本先执行整个工程的 `clean install`（包含测试），再通过 Jib 直接上传；上传无需运行 Docker daemon，Docker CLI 仅用于保存认证。基础镜像从容器仓库拉取。首次推送后按上述步骤将包设为 Public；包可见性对同一包的后续版本持续生效。私有包的部署账号须登录 GHCR，拉取 Token 使用 `read:packages`。详情见 [GitHub Container registry 文档](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
 
 确认待发布提交与版本后也可使用版本标签，例如 `bash build.sh 1.0.1 push`。不要用新的未发布代码覆盖已有稳定版标签；`latest` 仅在明确需要更新默认版本时使用，不会随 SHA 或版本标签自动发布。
 

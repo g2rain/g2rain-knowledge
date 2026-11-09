@@ -21,7 +21,7 @@ architectureBaseline:
   repository: https://github.com/g2rain/g2rain
   ref: architecture-v1.0.0
   profile: docs/architecture/profiles/java-domain-service
-  version: 1.0.1
+  version: 1.0.0
   deviations: docs/architecture/deviations.md
 
 evidence:
@@ -114,7 +114,7 @@ documentation:
 release:
   version: 1.0.0
   channel: stable
-  notes: docs/releases/v1.0.1.md
+  notes: docs/releases/v1.0.0.md
   pairedRepository: g2rain/g2rain-knowledge-app
   pairedVersion: 1.0.0
   verification:
