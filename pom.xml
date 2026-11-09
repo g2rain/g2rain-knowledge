@@ -56,7 +56,7 @@
     </modules>
 
     <properties>
-        <revision>1.0.1</revision>
+        <revision>1.0.0</revision>
         <!--
                     Jackson 3 统一升级至 3.2.4，覆盖 Spring Boot 依赖管理中的旧版本，
                     修复传递依赖引入的旧版本问题，并满足安全扫描要求。
