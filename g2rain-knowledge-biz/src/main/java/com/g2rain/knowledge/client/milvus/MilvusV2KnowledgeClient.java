@@ -329,7 +329,7 @@ public class MilvusV2KnowledgeClient implements MilvusKnowledgeClient {
                                                int topK) {
         try {
             var response = client().search(SearchReq.builder().collectionName(collectionName)
-                .annsField("content_vector").data(List.of(new FloatVec(vector))).topK(topK)
+                .annsField("content_vector").data(List.of(new FloatVec(vector))).limit(topK)
                 .metricType(IndexParam.MetricType.COSINE)
                 .filter(MilvusFilterBuilder.searchable(organId, includePublic, allTagCodes, anyTagCodes))
                 .outputFields(List.of("chunk_id")).build());
